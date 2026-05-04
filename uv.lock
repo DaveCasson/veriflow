@@ -3112,7 +3112,7 @@ wheels = [
 
 [[package]]
 name = "veriflow"
-version = "0.0.3"
+version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "dash" },
