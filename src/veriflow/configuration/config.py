@@ -127,13 +127,13 @@ class Config(BaseModel):
             return list[Annotated[union_type, Field(discriminator=discriminator)]]  # type:ignore[valid-type]
 
         merged_datasource_models = (
-            default_datasources_config + user_datasources_config
+            default_datasources_config + user_datasources_config  # type:ignore[operator]
             if user_datasources_config is not None
             else default_datasources_config
         )
 
         merged_scores_models = (
-            default_scores_config + users_scores_config
+            default_scores_config + users_scores_config  # type:ignore[operator]
             if users_scores_config is not None
             else default_scores_config
         )
@@ -151,8 +151,8 @@ class Config(BaseModel):
             merged_scores_models,  # type:ignore[arg-type]
             discriminator="score_adapter",
         )
-        CombinedDatasinkConfig = create_config_union(  # noqa: N806
-            merged_datasinks_models,  # type:ignore[arg-type]
+        CombinedDatasinkConfig = create_config_union(  # type:ignore[misc] # noqa: N806
+            merged_datasinks_models,
             discriminator="export_adapter",
         )
 

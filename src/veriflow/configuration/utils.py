@@ -155,11 +155,15 @@ class VerificationPair(BaseModel):
     Should consist of an id and reference to a source for
     observations and simulations. The id can be any arbitrary string, and the obs and sim fields
     should contain an exact reference to a configured source in the datasource configuration.
+    The variable field selects which physical variable from each source's dataset to verify;
+    after id mapping the same internal variable name must exist as a data variable on both the
+    observation and simulation source.
     """
 
     id: str
     obs: Source
     sim: Source
+    variable: Variable
 
     model_config = {
         "frozen": True,

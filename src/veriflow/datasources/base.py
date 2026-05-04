@@ -5,7 +5,6 @@ from abc import abstractmethod
 from os import R_OK, access
 from typing import ClassVar, Self
 
-import xarray
 import xarray as xr
 
 from veriflow.base import Base
@@ -31,7 +30,7 @@ class BaseDatasource(Base):
     def __init__(self, config: BaseDatasourceConfig) -> None:
         self.config: BaseDatasourceConfig = config
         self.data_type = config.data_type
-        self.data_array = xarray.DataArray()
+        self.dataset: xr.Dataset = xr.Dataset()
 
     @property
     def data_type(self) -> str:
@@ -55,14 +54,14 @@ class BaseDatasource(Base):
 
     @staticmethod
     def _drop_times_outside_vp(
-        da: xr.DataArray,
+        ds: xr.Dataset,
         verification_period_on_time: TimePeriod,
-    ) -> xr.DataArray:
+    ) -> xr.Dataset:
         """Mask times outside of verification period with inclusive endpoints."""
         # Mask values outside of verification period
-        filtered = da.where(
-            (da[StandardDim.time] >= verification_period_on_time.start_datetime64)
-            & (da[StandardDim.time] <= verification_period_on_time.end_datetime64),
+        filtered = ds.where(
+            (ds[StandardDim.time] >= verification_period_on_time.start_datetime64)
+            & (ds[StandardDim.time] <= verification_period_on_time.end_datetime64),
         )
         # Drop NaN values along frt and fp dims, if all values are NaN
         return filtered.dropna(dim=StandardDim.forecast_reference_time, how="all").dropna(
@@ -87,50 +86,50 @@ class BaseDatasource(Base):
             raise NotADirectoryError(msg)
 
         # Define file path for caching
-        cached_data_array_path = cache_dir / f"{self.__class__.__name__}_{config_hash}.nc"
+        cached_dataset_path = cache_dir / f"{self.__class__.__name__}_{config_hash}.nc"
 
-        if cached_data_array_path.exists():
-            self.data_array = xr.open_dataarray(cached_data_array_path)
+        if cached_dataset_path.exists():
+            self.dataset = xr.open_dataset(cached_dataset_path)
             return self
 
         # Go fetch and cache
         self.fetch_data()
-        data_array_original = self.data_array
+        dataset_original = self.dataset
 
         # Check that the datatype is defined, and consistent with the config
-        if "data_type" not in data_array_original.attrs:  # type:ignore[misc]
-            msg = "The fetched data array does not have a 'data_type' attribute."
+        if "data_type" not in dataset_original.attrs:  # type:ignore[misc]
+            msg = "The fetched dataset does not have a 'data_type' attribute."
             raise ValueError(msg)
-        if data_array_original.attrs["data_type"] != self.config.data_type:  # type:ignore[misc]
+        if dataset_original.attrs["data_type"] != self.config.data_type:  # type:ignore[misc]
             msg = (
-                f"The data type of the fetched data array "
-                f"({data_array_original.attrs['data_type']}) does not match the configured data "  # type:ignore[misc]
+                f"The data type of the fetched dataset "
+                f"({dataset_original.attrs['data_type']}) does not match the configured data "  # type:ignore[misc]
                 f"type ({self.config.data_type})."
             )
             raise ValueError(msg)
 
-        # Make sure the name of the array is set to the configured source
-        data_array_original.name = self.config.source
+        # Make sure the source attribute is set to the configured source
+        dataset_original.attrs["source"] = self.config.source  # type:ignore[misc]
 
         # Apply re-naming based on configured id mapping, if not None
         if self.config.id_mapping is not None:
-            data_array_original = self.config.id_mapping.rename_data_array(data_array_original)
+            dataset_original = self.config.id_mapping.rename_dataset(dataset_original)
 
         # Additional layer to filter time, frt and fp properly according to config.
-        if data_array_original.attrs["data_type"] in FORECAST_DATA_TYPES:  # type:ignore[misc]
+        if dataset_original.attrs["data_type"] in FORECAST_DATA_TYPES:  # type:ignore[misc]
             # Select only relevant forecast periods for simulations
-            data_array_original = data_array_original.sel(
+            dataset_original = dataset_original.sel(
                 forecast_period=self.config.forecast_periods.timedelta64,
             )
             # Mask and drop time values outside of the configured vp
-            data_array_original = self._drop_times_outside_vp(
-                da=data_array_original,
+            dataset_original = self._drop_times_outside_vp(
+                ds=dataset_original,
                 verification_period_on_time=self.config.verification_period_on_time,
             )
-        if data_array_original.attrs["data_type"] == DataType.observed_historical:  # type:ignore[misc]
+        if dataset_original.attrs["data_type"] == DataType.observed_historical:  # type:ignore[misc]
             # Mask and drop time values outside of the configured vp
             # Historical data type
-            data_array_original = data_array_original.sel(
+            dataset_original = dataset_original.sel(
                 {
                     StandardDim.time: slice(  # type:ignore[misc]
                         self.config.verification_period_on_time.start,
@@ -140,16 +139,16 @@ class BaseDatasource(Base):
             )
 
         # Cache
-        data_array_original.to_netcdf(cached_data_array_path)
+        dataset_original.to_netcdf(cached_dataset_path)
 
-        # Re-open to read from cache and prevent links to original files from which the dataarray
+        # Re-open to read from cache and prevent links to original files from which the dataset
         #   was loaded
-        data_array_reloaded = xr.open_dataarray(cached_data_array_path)
+        dataset_reloaded = xr.open_dataset(cached_dataset_path)
 
         # Explicitly close original backing files
-        if hasattr(data_array_original, "close"):
-            data_array_original.close()
+        if hasattr(dataset_original, "close"):
+            dataset_original.close()
 
         # Re-assign from cache
-        self.data_array = data_array_reloaded
+        self.dataset = dataset_reloaded
         return self

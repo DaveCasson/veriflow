@@ -17,22 +17,26 @@ from veriflow.datasources.inputschemas import INPUT_SCHEMAS
 __all__ = ["InputDataset", "OutputDataset"]
 
 
-@xr.register_dataarray_accessor("verification")  # type:ignore[no-untyped-call, misc]
-class InputDataArrayExtension:
-    """xr.DataArray representing specific data type.
+@xr.register_dataset_accessor("verification")  # type:ignore[no-untyped-call, misc]
+class InputDatasetExtension:
+    """xr.Dataset representing a specific data type from a specific source.
 
-    xr.register_dataset_accessor is the recommended way to extend xr.DataArray.
-    see: https://docs.xarray.dev/en/stable/internals/extending-xarray.html. It's used there to
-    extend the input data arrays so we can directly access properties (like data type and
-    source) and the validation method that checks the input array against a schema.
+    xr.register_dataset_accessor is the recommended way to extend xr.Dataset.
+    see: https://docs.xarray.dev/en/stable/internals/extending-xarray.html. It's used here to
+    extend the input datasets so we can directly access properties (like data type and
+    source) and the validation method that checks the input dataset against a schema.
+
+    The dataset is expected to carry ``data_type`` and ``source`` keys on its ``attrs``.
+    Each data variable in the dataset represents a physical variable, and is expected to
+    carry a ``units`` key on its ``attrs``.
     """
 
-    def __init__(self, xarray_obj: xr.DataArray) -> None:
+    def __init__(self, xarray_obj: xr.Dataset) -> None:
         self._obj = xarray_obj
 
     @property
     def data_type(self) -> str:
-        """The data type of the array."""
+        """The data type of the dataset."""
         if "data_type" not in self._obj.attrs:  # type:ignore[misc]
             msg = f"No data type set on {self._obj} attrs."
             raise ValueError(msg)
@@ -40,23 +44,26 @@ class InputDataArrayExtension:
 
     @property
     def is_thresholds(self) -> bool:
-        """Boolean indicating this array is a thresholds array."""
+        """Boolean indicating this dataset is a thresholds dataset."""
         return self.data_type == DataType.threshold
 
     @property
     def is_historical(self) -> bool:
-        """Boolean indicating this array is a historical."""
+        """Boolean indicating this dataset is historical."""
         return self.data_type in HISTORICAL_DATA_TYPES
 
     @property
     def is_forecast(self) -> bool:
-        """Boolean indicating this array is a forecast."""
+        """Boolean indicating this dataset is a forecast."""
         return self.data_type in FORECAST_DATA_TYPES
 
     @property
     def source(self) -> str:
         """The source name."""
-        return str(self._obj.name)
+        if "source" not in self._obj.attrs:  # type:ignore[misc]
+            msg = f"No source set on {self._obj} attrs."
+            raise ValueError(msg)
+        return str(self._obj.attrs["source"])  # type:ignore[misc]
 
     def validate(self) -> None:
         """Validate the data according to schema."""
@@ -73,25 +80,25 @@ class InputDataset:
     """
     Class containing simulations and observations.
 
-    SimObsDataset has functionality to retrieve verification pairs for computation of scores
+    InputDataset has functionality to retrieve verification pairs for computation of scores
     per pair. It is the central object used in the verification pipeline.
     """
 
     def __init__(
         self,
-        data: Iterable[xr.DataArray],
+        data: Iterable[xr.Dataset],
     ) -> None:
         """Initialize the InputDataset.
 
-        Validates each input data array against a schema and collects all input data into a
-        dictionary, keyed by the source and valued by the xr.DataArray.
+        Validates each input dataset against a schema and collects all input data into a
+        dictionary, keyed by the source and valued by the xr.Dataset.
         """
-        self.datastore: dict[str, xr.DataArray] = {}
+        self.datastore: dict[str, xr.Dataset] = {}
 
         # Validate, and add to datastore
-        for data_array in data:
-            data_array.verification.validate()  # type:ignore[misc]
-            self.datastore[data_array.verification.source] = data_array  # type:ignore[misc]
+        for dataset in data:
+            dataset.verification.validate()  # type:ignore[misc]
+            self.datastore[dataset.verification.source] = dataset  # type:ignore[misc]
 
     @staticmethod
     def map_historical_into_forecast_space(
@@ -110,7 +117,7 @@ class InputDataset:
         aligned along the same dimensions.
         """
         # Stack forecast time axes
-        stacked_time = sim[StandardDim.time].stack(  # type:ignore[misc]
+        stacked_time = sim[StandardDim.time].stack(
             z=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
         )
 
@@ -158,13 +165,38 @@ class InputDataset:
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Return observations and simulations for a given verification pair.
 
-        This method is called by the verification pipeline at runtime to retrieve the correct data
-        for one of the configured verification pairs.
+        Selects ``verification_pair.variable`` from each source's dataset and returns the
+        resulting DataArrays. This method is called by the verification pipeline at runtime
+        to retrieve the correct data for one of the configured verification pairs.
         """
-        obs = self.datastore[verification_pair.obs]
-        sim = self.datastore[verification_pair.sim]
+        obs_ds = self.datastore[verification_pair.obs]
+        sim_ds = self.datastore[verification_pair.sim]
 
-        if sim.verification.is_forecast:  # type:ignore[misc]
+        variable = verification_pair.variable
+        if variable not in obs_ds.data_vars:
+            msg = (
+                f"Variable '{variable}' configured on verification pair "
+                f"'{verification_pair.id}' not found in obs source '{verification_pair.obs}'. "
+                f"Available variables: {sorted(obs_ds.data_vars)}."  # type:ignore[type-var]
+            )
+            raise ValueError(msg)
+        if variable not in sim_ds.data_vars:
+            msg = (
+                f"Variable '{variable}' configured on verification pair "
+                f"'{verification_pair.id}' not found in sim source '{verification_pair.sim}'. "
+                f"Available variables: {sorted(sim_ds.data_vars)}."  # type:ignore[type-var]
+            )
+            raise ValueError(msg)
+
+        obs = obs_ds[variable]
+        sim = sim_ds[variable]
+
+        # Propagate dataset-level data_type onto each extracted DataArray, so downstream code
+        # (scores etc.) can read it via the data array's attrs.
+        obs.attrs.setdefault("data_type", obs_ds.attrs.get("data_type"))  # type:ignore[misc]
+        sim.attrs.setdefault("data_type", sim_ds.attrs.get("data_type"))  # type:ignore[misc]
+
+        if sim_ds.verification.is_forecast:  # type:ignore[misc]
             # Map historical into forecast space upon score computation
             return self.map_historical_into_forecast_space(obs, sim), sim
 
@@ -173,13 +205,19 @@ class InputDataset:
         #   data into forecast space.
         return obs, sim
 
-    def get_thresholds_array(self) -> xr.DataArray:
-        """Get the thresholds array from the input dataset."""
-        for data_array in self.datastore.values():
-            if data_array.verification.is_thresholds:  # type:ignore[misc]
-                return data_array
+    def get_thresholds_array(self, variable: str) -> xr.DataArray:
+        """Get the thresholds array for a given variable from the input dataset."""
+        for dataset in self.datastore.values():
+            if dataset.verification.is_thresholds:  # type:ignore[misc]
+                if variable not in dataset.data_vars:
+                    msg = (
+                        f"Variable '{variable}' not found in thresholds dataset. "
+                        f"Available variables: {sorted(dataset.data_vars)}."  # type:ignore[type-var]
+                    )
+                    raise ValueError(msg)
+                return dataset[variable]
         msg = (
-            "No thresholds array found in the input dataset, but required for computing "
+            "No thresholds dataset found in the input dataset, but required for computing "
             "categorical scores."
         )
         raise ValueError(msg)
@@ -234,8 +272,11 @@ class OutputDataset:
             dataset = self.datastore[verification_pair]
 
             if include_input_data:
-                # Return results, include the input dataset
+                # Return results, include the input dataset (renamed obs/sim DataArrays to the
+                # source name to avoid collision when both sources expose the same variable name)
                 obs, sim = self.input_dataset.get_pair(verification_pair)
+                obs = obs.rename(verification_pair.obs)
+                sim = sim.rename(verification_pair.sim)
                 return xr.merge([obs, sim, dataset], compat="no_conflicts", join="outer")  # type:ignore[misc, no-any-return, call-overload]
 
             # Return results, exclude input dataset
@@ -243,6 +284,8 @@ class OutputDataset:
 
         # Return only input dataset (no results found in datastore)
         obs, sim = self.input_dataset.get_pair(verification_pair)
+        obs = obs.rename(verification_pair.obs)
+        sim = sim.rename(verification_pair.sim)
         return xr.merge([obs, sim], compat="no_conflicts", join="outer")  # type:ignore[misc, no-any-return, call-overload]
 
     @property

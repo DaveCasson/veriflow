@@ -133,8 +133,8 @@ def test_get_data_retrieval_methods_return_equal_data_arrays(
     ds_a: FewsWebservice = request.getfixturevalue(frt)
     ds_b: FewsWebservice = request.getfixturevalue(fp)
 
-    a = ds_a.get_data().data_array
-    b = ds_b.get_data().data_array
+    a = ds_a.get_data().dataset
+    b = ds_b.get_data().dataset
 
     xr.testing.assert_equal(a, b)
 
@@ -160,9 +160,9 @@ def test_get_data_returns_valid_data_array(
     datasource = fews_netcdf.get_data()
 
     schema = INPUT_SCHEMAS[fews_netcdf.config.data_type]
-    schema.model_validate(fews_netcdf.data_array.to_dict(data=False))
+    schema.model_validate(fews_netcdf.dataset.to_dict(data=False))
 
     assert all(
-        datasource.data_array[StandardDim.forecast_period]
+        datasource.dataset[StandardDim.forecast_period]
         == datasource.config.forecast_periods.timedelta64,
     )

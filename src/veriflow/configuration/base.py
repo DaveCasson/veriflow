@@ -128,36 +128,37 @@ class IdMappingConfig(BaseModel):
         ),
     ] = None
 
-    def rename_data_array(self, data_array: xr.DataArray) -> xr.DataArray:
-        source = str(data_array.name)
+    def rename_dataset(self, dataset: xr.Dataset) -> xr.Dataset:
+        """Apply the configured id mapping to a dataset.
 
-        # Re-assign variable coordinates, if mapping is provided for source
+        Variable names (data variable names) and station identifiers are renamed from the
+        external (source-specific) definition to the internal definition.
+        """
+        source = str(dataset.attrs.get("source", ""))  # type:ignore[misc]
+
+        # Re-assign variable definitions, if mapping is provided for source
         if self.variable is not None:
-            data_array = data_array.assign_coords(
-                {  # type:ignore[misc]
-                    StandardDim.variable: (  # type:ignore[misc]
-                        StandardDim.variable,
-                        data_array[StandardDim.variable]  # type:ignore[misc]
-                        .to_series()
-                        .replace(self.variable.get_external_to_internal_mapping(source))
-                        .to_numpy(),
-                    ),
-                },
-            )
+            ext_to_int = self.variable.get_external_to_internal_mapping(source)
+            # Restrict to variables that actually exist as data_vars on the dataset
+            rename_map = {
+                ext: internal for ext, internal in ext_to_int.items() if ext in dataset.data_vars
+            }
+            if rename_map:
+                dataset = dataset.rename_vars(rename_map)
         # Re-assign station coordinates, if mapping is provided for source
         if self.station is not None:
-            data_array = data_array.assign_coords(
+            dataset = dataset.assign_coords(
                 {  # type:ignore[misc]
                     StandardDim.station: (  # type:ignore[misc]
                         StandardDim.station,
-                        data_array[StandardDim.station]  # type:ignore[misc]
+                        dataset[StandardDim.station]  # type:ignore[misc]
                         .to_series()
                         .replace(self.station.get_external_to_internal_mapping(source))
                         .to_numpy(),
                     ),
                 },
             )
-        return data_array
+        return dataset
 
 
 class BaseConfig(BaseModel):

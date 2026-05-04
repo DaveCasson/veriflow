@@ -41,7 +41,7 @@ class BaseScore(Base):
         sim: xr.DataArray,
     ) -> xr.DataArray | xr.Dataset:
         """Validate and compute."""
-        data_type: DataType = sim.verification.data_type  # type:ignore[misc]
+        data_type: DataType = DataType(sim.attrs["data_type"])  # type:ignore[misc]
         if data_type not in self.supported_data_types:
             msg = f"The data type '{data_type} is not supported by"
             f"{self.__class__.__name__}. Supported types: "
@@ -82,7 +82,7 @@ class BaseCategoricalScore(Base):
         thresholds: xr.DataArray,
     ) -> xr.DataArray | xr.Dataset:
         """Validate and compute."""
-        data_type: DataType = sim.verification.data_type  # type:ignore[misc]
+        data_type: DataType = DataType(sim.attrs["data_type"])  # type:ignore[misc]
         if data_type not in self.supported_data_types:
             msg = f"The data type '{data_type} is not supported by"
             f"{self.__class__.__name__}. Supported types: "

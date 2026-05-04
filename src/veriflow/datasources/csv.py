@@ -27,7 +27,7 @@ class Csv(BaseDatasource):
 
     def __init__(self, config: CsvConfig) -> None:
         self.config: CsvConfig = config
-        self.data_array = xr.DataArray()
+        self.dataset: xr.Dataset = xr.Dataset()
 
     def fetch_data(self) -> Self:
         """Parse thresholds from csv file."""
@@ -45,14 +45,15 @@ class Csv(BaseDatasource):
             msg = f"Expected columns: {expected_columns}. Got: {threshold_df.columns}"
             raise ValueError(msg)
 
-        # Convert it to the internal datamodel
-        self.data_array = threshold_df.set_index(
+        # Pivot the long-form table into a Dataset where each unique variable becomes a
+        # data variable with dims (station, threshold).
+        pivoted = threshold_df.set_index(
             [StandardDim.station, StandardDim.variable, StandardDim.threshold],
         ).to_xarray()["value"]
 
-        # Filter the data array based on the configured station, variable and threshold ids
+        # Filter the array based on the configured station, variable and threshold ids
         try:
-            self.data_array = self.data_array.sel(
+            pivoted = pivoted.sel(
                 station=self.config.stations,
                 variable=self.config.variables,
                 threshold=self.config.thresholds,
@@ -62,6 +63,11 @@ class Csv(BaseDatasource):
             f"data. Details: {e}"
             raise ValueError(msg) from e
 
-        # Set the data type as an attribute for later use in the verification process
-        self.data_array.attrs["data_type"] = "threshold"  # type:ignore[misc]
+        # Convert the variable dim into separate data variables, one per variable.
+        dataset = pivoted.to_dataset(dim=StandardDim.variable)
+
+        # Set the data type and source as attributes for later use in the verification process
+        dataset.attrs["data_type"] = "threshold"  # type:ignore[misc]
+        dataset.attrs["source"] = self.config.source  # type:ignore[misc]
+        self.dataset = dataset
         return self

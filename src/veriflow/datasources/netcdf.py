@@ -27,12 +27,14 @@ class NetCDF(BaseDatasource):
         import xarray as xr
         from veriflow.datasources import validate_input_data
 
-        data_array = xr.open_dataarray("path/to/netcdf/file/example.nc")
-        validated_data = validate_input_data(data_array)
+        dataset = xr.open_dataset("path/to/netcdf/file/example.nc")
+        validated_data = validate_input_data(dataset)
 
     .. note::
-        The NetCDF file must contain exactly one data variable. The data variable
-        must also have a ``data_type`` attribute that matches one of the supported data types.
+        The data variables in the NetCDF file represent the physical variables to be verified.
+        Each data variable should carry a ``units`` attribute. The dataset must carry a
+        ``data_type`` attribute that matches one of the supported data types (it will be set
+        from the configuration if missing).
     """
 
     kind = "netcdf"
@@ -49,15 +51,8 @@ class NetCDF(BaseDatasource):
         self.config: NetCDFConfig = config
 
     def fetch_data(self) -> Self:
-        """Retrieve NetCDF file content as an xarray DataArray."""
+        """Retrieve NetCDF file content as an xarray Dataset."""
         dataset = xr.open_mfdataset(self.config.paths)  # type:ignore[arg-type] # Generator is accepted by open_mfdataset, but not correctly typed in xarray
-
-        if len(dataset.data_vars) != 1:
-            msg = (
-                f"Expected exactly one data variable in the NetCDF file, but found "
-                f"{len(dataset.data_vars)}.",
-            )
-            raise ValueError(msg)
-        self.data_array = dataset[next(iter(dataset.data_vars))]
-        self.data_array.attrs["data_type"] = self.config.data_type  # type: ignore[misc]
+        dataset.attrs["data_type"] = self.config.data_type  # type: ignore[misc]
+        self.dataset = dataset
         return self

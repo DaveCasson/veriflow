@@ -47,7 +47,6 @@ class ReduceDimsForecast(BaseModel):
         return [
             k
             for k in [
-                StandardDim.variable,
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
                 StandardDim.forecast_period,
