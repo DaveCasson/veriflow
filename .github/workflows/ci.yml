@@ -70,8 +70,10 @@ jobs:
           path: test-results*.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        # Upload once from a canonical matrix job and skip fork PRs (no secrets).
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork)
+        uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
           fail_ci_if_error: false
-  
+          token: ${{ secrets.CODECOV_TOKEN }}
