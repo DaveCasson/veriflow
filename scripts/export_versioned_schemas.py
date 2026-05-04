@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from veriflow.configuration import Config
-from veriflow.constants import VERSION
+from veriflow.constants import SCHEMA_VERSION
 
-schema_dir = Path(__file__).parent.parent / "schemas" / f"{VERSION}"
+schema_dir = Path(__file__).parent.parent / "schemas" / f"{SCHEMA_VERSION}"
 schema_dir.mkdir(exist_ok=True)
 schema_path = schema_dir / "config.schema.json"
 

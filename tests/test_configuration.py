@@ -19,7 +19,7 @@ from veriflow.configuration.utils import (
     Range,
     TimeUnits,
 )
-from veriflow.constants import VERSION
+from veriflow.constants import SCHEMA_VERSION
 
 
 @pytest.fixture  # type:ignore[misc] # has type overloaded function
@@ -42,7 +42,7 @@ def test_auth_config_from_fixture() -> None:
 def test_schema_up_to_date(tmp_path: Path) -> None:
     """Check that the schema for our config is up to date."""
     file_path_schema = (
-        Path(__file__).parent.parent / "schemas" / f"{VERSION}" / "config.schema.json"
+        Path(__file__).parent.parent / "schemas" / f"{SCHEMA_VERSION}" / "config.schema.json"
     )
     assert file_path_schema.exists()
 
