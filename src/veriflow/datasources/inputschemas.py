@@ -180,16 +180,11 @@ class DataVarAttrs(BaseModel):
     model_config = {"extra": "allow"}
 
 
-def _data_var_dims_validator(required: set[str], optional: set[str] | None = None) -> callable:
-    """Validate per-data_var dims by combining required and optional dims."""
-    return check_dims(required, optional=optional)
-
-
 class HistoricalDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            _data_var_dims_validator({StandardDim.station, StandardDim.time}),
+            check_dims({StandardDim.station, StandardDim.time}),
         ),
     ]
     attrs: DataVarAttrs
@@ -199,7 +194,7 @@ class SimulatedForecastSingleDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            _data_var_dims_validator(
+            check_dims(
                 {
                     StandardDim.station,
                     StandardDim.forecast_reference_time,
@@ -215,7 +210,7 @@ class SimulatedForecastEnsembleDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            _data_var_dims_validator(
+            check_dims(
                 {
                     StandardDim.station,
                     StandardDim.forecast_reference_time,
@@ -232,7 +227,7 @@ class SimulatedForecastProbabilisticDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            _data_var_dims_validator(
+            check_dims(
                 {
                     StandardDim.station,
                     StandardDim.forecast_reference_time,
@@ -249,7 +244,7 @@ class ThresholdDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            _data_var_dims_validator({StandardDim.station, StandardDim.threshold}),
+            check_dims({StandardDim.station, StandardDim.threshold}),
         ),
     ]
     # Threshold variables don't strictly need units; allow any attrs

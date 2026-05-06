@@ -104,20 +104,20 @@ class Config(BaseModel):
             Option to provide user-implemented config classes, by default None
 
         """
-        default_datasources_config = [
+        default_datasources_config: list[type[BaseDatasourceConfig]] = [
             FewsNetCDFConfig,
             FewsWebserviceConfig,
             CsvConfig,
             NetCDFConfig,
         ]
-        default_scores_config = [
+        default_scores_config: list[type[BaseScoreConfig]] = [
             CrpsForEnsembleConfig,
             RankHistogramConfig,
             CrpsCDFConfig,
             ContinuousScoresConfig,
             CategoricalScoresConfig,
         ]
-        default_datasinks_config = [CFCompliantNetCDFConfig]
+        default_datasinks_config: list[type[BaseDatasinkConfig]] = [CFCompliantNetCDFConfig]
 
         def create_config_union(
             models: list[type[TItem]],
@@ -127,13 +127,13 @@ class Config(BaseModel):
             return list[Annotated[union_type, Field(discriminator=discriminator)]]  # type:ignore[valid-type]
 
         merged_datasource_models = (
-            default_datasources_config + user_datasources_config  # type:ignore[operator]
+            default_datasources_config + user_datasources_config
             if user_datasources_config is not None
             else default_datasources_config
         )
 
         merged_scores_models = (
-            default_scores_config + users_scores_config  # type:ignore[operator]
+            default_scores_config + users_scores_config
             if users_scores_config is not None
             else default_scores_config
         )
@@ -144,14 +144,14 @@ class Config(BaseModel):
         )
 
         CombinedDataSourceConfig = create_config_union(  # noqa: N806
-            merged_datasource_models,  # type:ignore[arg-type]
+            merged_datasource_models,
             discriminator="import_adapter",
         )
         CombinedScoreConfig = create_config_union(  # noqa: N806
-            merged_scores_models,  # type:ignore[arg-type]
+            merged_scores_models,
             discriminator="score_adapter",
         )
-        CombinedDatasinkConfig = create_config_union(  # type:ignore[misc] # noqa: N806
+        CombinedDatasinkConfig = create_config_union(  # noqa: N806
             merged_datasinks_models,
             discriminator="export_adapter",
         )

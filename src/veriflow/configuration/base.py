@@ -143,7 +143,7 @@ class IdMappingConfig(BaseModel):
             rename_map = {
                 ext: internal for ext, internal in ext_to_int.items() if ext in dataset.data_vars
             }
-            if rename_map:
+            if len(rename_map) > 0:
                 dataset = dataset.rename_vars(rename_map)
         # Re-assign station coordinates, if mapping is provided for source
         if self.station is not None:

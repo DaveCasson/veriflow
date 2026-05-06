@@ -208,14 +208,15 @@ class InputDataset:
     def get_thresholds_array(self, variable: str) -> xr.DataArray:
         """Get the thresholds array for a given variable from the input dataset."""
         for dataset in self.datastore.values():
-            if dataset.verification.is_thresholds:  # type:ignore[misc]
-                if variable not in dataset.data_vars:
-                    msg = (
-                        f"Variable '{variable}' not found in thresholds dataset. "
-                        f"Available variables: {sorted(dataset.data_vars)}."  # type:ignore[type-var]
-                    )
-                    raise ValueError(msg)
-                return dataset[variable]
+            if not dataset.verification.is_thresholds:  # type:ignore[misc]
+                continue
+            if variable not in dataset.data_vars:
+                msg = (
+                    f"Variable '{variable}' not found in thresholds dataset. "
+                    f"Available variables: {sorted(dataset.data_vars)}."  # type:ignore[type-var]
+                )
+                raise ValueError(msg)
+            return dataset[variable]
         msg = (
             "No thresholds dataset found in the input dataset, but required for computing "
             "categorical scores."
