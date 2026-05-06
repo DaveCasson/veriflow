@@ -194,7 +194,7 @@ class FewsWebserviceClient:
                 date = header["forecastDate"]["date"]
                 time = header["forecastDate"]["time"]
                 if header["moduleInstanceId"] == module_instance_id:
-                    return datetime.fromisoformat(f"{date}T{time}")
+                    return datetime.fromisoformat(f"{date}T{time}")  # type:ignore[unreachable]
             return None
 
         forecast_dates: list[datetime] = []

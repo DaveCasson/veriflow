@@ -97,7 +97,7 @@ build-backend = "setuptools.build_meta"
 dev = [
     "ipykernel>=7.2.0",
     "matplotlib>=3.10.8",
-    "mypy==1.10.1",
+    "mypy>=1.20.2",
     "myst-parser>=5.0.0",
     "nbsphinx>=0.9.8",
     "pandas-stubs==2.2.2.240603",

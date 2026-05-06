@@ -19,8 +19,8 @@ def test_fetch_thresholds(
 
     # Test the threshold ids are as expected (coordinate values)
     np.testing.assert_array_equal(
-        xarray_thresholds.data_array.threshold.to_numpy(),  # type:ignore[misc]
-        np.array(["warn_1", "warn_2"]),  # type:ignore[misc]
+        xarray_thresholds.dataset.threshold.to_numpy(),
+        np.array(["warn_1", "warn_2"]),
     )
 
     # Test one threshold value matches the source csv content.
@@ -31,8 +31,8 @@ def test_fetch_thresholds(
     ]["value"].iloc[0]
 
     np.testing.assert_approx_equal(
-        xarray_thresholds.data_array.isel(station=0, variable=0, threshold=0).to_numpy(),  # type:ignore[misc]
-        expected_value,  # type:ignore[misc]
+        xarray_thresholds.dataset["var_1"].isel(station=0, threshold=0).to_numpy(),
+        expected_value,
     )
 
 

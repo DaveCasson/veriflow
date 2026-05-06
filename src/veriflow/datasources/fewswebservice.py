@@ -117,7 +117,7 @@ class FewsWebservice(BaseDatasource):
         we need to store it in the filename, so that we can internally assign it later
         as a proper coordinate on the internal xr.DataArray.
         """
-        zip_bytes = io.BytesIO(response.content)  # type:ignore[misc]
+        zip_bytes = io.BytesIO(response.content)
 
         if not write_dir.is_dir():
             msg = "Provided path is not a directory."
@@ -184,13 +184,13 @@ class FewsWebservice(BaseDatasource):
                     ),
                 )
 
-                # Call get_data directly, to immediately cache the xr.DataArray and break links to
+                # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
                 #   context manager.
                 datasource.get_data()
 
                 # After this, the context manager will be closed, and tmpdir deleted
-                self.data_array = datasource.data_array
+                self.dataset = datasource.dataset
 
                 return self
 
@@ -345,13 +345,13 @@ class FewsWebservice(BaseDatasource):
                     ),
                 )
 
-                # Call get_data directly, to immediately cache the xr.DataArray and break links to
+                # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
                 #   context manager.
                 datasource.get_data()
 
                 # After this, the context manager will be closed and tmpdir deleted
-                self.data_array = datasource.data_array
+                self.dataset = datasource.dataset
 
                 return self
 
@@ -405,13 +405,13 @@ class FewsWebservice(BaseDatasource):
                     ),
                 )
 
-                # Call get_data directly, to immediately cache the xr.DataArray and break links to
+                # Call get_data directly, to immediately cache the xr.Dataset and break links to
                 #   to tmpdir. This prevents os.PermissionErrors upon __exit__ of the current
                 #   context manager.
                 datasource.get_data()
 
                 # Assign to self
-                self.data_array = datasource.data_array
+                self.dataset = datasource.dataset
 
                 return self
 

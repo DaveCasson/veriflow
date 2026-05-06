@@ -104,20 +104,20 @@ class Config(BaseModel):
             Option to provide user-implemented config classes, by default None
 
         """
-        default_datasources_config = [
+        default_datasources_config: list[type[BaseDatasourceConfig]] = [
             FewsNetCDFConfig,
             FewsWebserviceConfig,
             CsvConfig,
             NetCDFConfig,
         ]
-        default_scores_config = [
+        default_scores_config: list[type[BaseScoreConfig]] = [
             CrpsForEnsembleConfig,
             RankHistogramConfig,
             CrpsCDFConfig,
             ContinuousScoresConfig,
             CategoricalScoresConfig,
         ]
-        default_datasinks_config = [CFCompliantNetCDFConfig]
+        default_datasinks_config: list[type[BaseDatasinkConfig]] = [CFCompliantNetCDFConfig]
 
         def create_config_union(
             models: list[type[TItem]],
@@ -144,15 +144,15 @@ class Config(BaseModel):
         )
 
         CombinedDataSourceConfig = create_config_union(  # noqa: N806
-            merged_datasource_models,  # type:ignore[arg-type]
+            merged_datasource_models,
             discriminator="import_adapter",
         )
         CombinedScoreConfig = create_config_union(  # noqa: N806
-            merged_scores_models,  # type:ignore[arg-type]
+            merged_scores_models,
             discriminator="score_adapter",
         )
         CombinedDatasinkConfig = create_config_union(  # noqa: N806
-            merged_datasinks_models,  # type:ignore[arg-type]
+            merged_datasinks_models,
             discriminator="export_adapter",
         )
 

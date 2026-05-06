@@ -175,7 +175,7 @@ def run_pipeline(
 
         # Initialize the input dataset
         input_dataset = InputDataset(
-            [datasource.data_array for datasource in datasources],
+            [datasource.dataset for datasource in datasources],
         )
 
         msg = "Successfully loaded all data from sources."
@@ -205,7 +205,7 @@ def run_pipeline(
                 # BaseScore, and we want to keep the compute function signature of BaseScore simple
                 # without optional arguments that are only required for categorical scores.
                 if isinstance(score, BaseCategoricalScore):
-                    thresholds = input_dataset.get_thresholds_array()
+                    thresholds = input_dataset.get_thresholds_array(verification_pair.variable)
                     result = score.validate_and_compute(obs=obs, sim=sim, thresholds=thresholds)
                 else:
                     result = score.validate_and_compute(obs=obs, sim=sim)

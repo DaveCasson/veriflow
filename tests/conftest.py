@@ -135,32 +135,33 @@ def xarray_dataset_fews_compliant() -> xr.Dataset:
 
 
 @pytest.fixture
-def xarray_observed_historical() -> xr.DataArray:
-    """Return example observations."""
-    # Create observation data
-    obs_data = rng.random((len(times), len(stations), variable_n), dtype=dtype)
-
-    # Create dataset
-    return xr.DataArray(
-        data=obs_data,
-        name=DummySource.observation_source,
-        dims=[StandardDim.time, StandardDim.station, StandardDim.variable],
-        coords={
-            StandardCoord.time.name: times,
-            StandardCoord.variable.name: variables,
-            StandardCoord.units.name: (
-                StandardDim.variable,
-                [f"dummy_unit_{x}" for x in range(variable_n)],
-            ),
-            StandardDim.station: (StandardDim.station, stations),
-            StandardCoord.station.name: (StandardDim.station, stations),
-            StandardCoord.lat.name: (StandardDim.station, lat),
-            StandardCoord.lon.name: (StandardDim.station, lon),
-            StandardCoord.x.name: (StandardDim.station, x),
-            StandardCoord.y.name: (StandardDim.station, y),
-            StandardCoord.z.name: (StandardDim.station, z),
+def xarray_observed_historical() -> xr.Dataset:
+    """Return example observations as a Dataset (one data_var per variable)."""
+    coords = {
+        StandardCoord.time.name: times,
+        StandardDim.station: (StandardDim.station, stations),
+        StandardCoord.station.name: (StandardDim.station, stations),
+        StandardCoord.lat.name: (StandardDim.station, lat),
+        StandardCoord.lon.name: (StandardDim.station, lon),
+        StandardCoord.x.name: (StandardDim.station, x),
+        StandardCoord.y.name: (StandardDim.station, y),
+        StandardCoord.z.name: (StandardDim.station, z),
+    }
+    data_vars = {}
+    for i, v in enumerate(variables):
+        arr = rng.random((len(times), len(stations)), dtype=dtype)
+        data_vars[v] = xr.DataArray(
+            data=arr,
+            dims=[StandardDim.time, StandardDim.station],
+            attrs={"units": f"dummy_unit_{i}"},
+        )
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            "data_type": DataType.observed_historical,
+            "source": DummySource.observation_source,
         },
-        attrs={"data_type": DataType.observed_historical},
     )
 
 
@@ -168,7 +169,7 @@ def xarray_observed_historical() -> xr.DataArray:
 def xarray_observed_historical_datasource(
     tmp_path: Path,
     xarray_general_info_config: GeneralInfoConfig,
-    xarray_observed_historical: xr.DataArray,
+    xarray_observed_historical: xr.Dataset,
 ) -> NetCDF:
     """Return example observations."""
     # Write the xarray to a NetCDF file in the temporary directory
@@ -191,90 +192,88 @@ def xarray_observed_historical_datasource(
 
 
 @pytest.fixture
-def xarray_simulated_forecast_ensemble() -> xr.DataArray:
+def xarray_simulated_forecast_ensemble() -> xr.Dataset:
     """Return example simulations compatible with the internal datamodel.
 
     Uses forecast_period as dimension and coordinates.
     """
-    data = rng.random(
-        (variable_n, station_n, frt_n, fp_n, realization_n),
-        dtype=dtype,
-    )
-
-    return xr.DataArray(
-        data=data,
-        name=DummySource.simulation_ensemble_source,
-        dims=[
-            StandardDim.variable,
-            StandardDim.station,
-            StandardDim.forecast_reference_time,
-            StandardDim.forecast_period,
-            StandardDim.realization,
-        ],
-        coords={
-            StandardCoord.forecast_reference_time.name: forecast_reference_times,
-            StandardCoord.forecast_period.name: forecast_periods,
-            StandardCoord.realization.name: realization,
-            StandardCoord.variable.name: variables,
-            StandardCoord.time.name: (
-                (StandardDim.forecast_reference_time, StandardDim.forecast_period),
-                forecast_times,
-            ),
-            StandardCoord.units.name: (
-                StandardDim.variable,
-                [f"dummy_unit_{x}" for x in range(variable_n)],
-            ),
-            StandardCoord.station.name: (StandardDim.station, stations),
-            StandardCoord.lat.name: (StandardDim.station, lat),
-            StandardCoord.lon.name: (StandardDim.station, lon),
-            StandardCoord.x.name: (StandardDim.station, x),
-            StandardCoord.y.name: (StandardDim.station, y),
-            StandardCoord.z.name: (StandardDim.station, z),
+    coords = {
+        StandardCoord.forecast_reference_time.name: forecast_reference_times,
+        StandardCoord.forecast_period.name: forecast_periods,
+        StandardCoord.realization.name: realization,
+        StandardCoord.time.name: (
+            (StandardDim.forecast_reference_time, StandardDim.forecast_period),
+            forecast_times,
+        ),
+        StandardCoord.station.name: (StandardDim.station, stations),
+        StandardCoord.lat.name: (StandardDim.station, lat),
+        StandardCoord.lon.name: (StandardDim.station, lon),
+        StandardCoord.x.name: (StandardDim.station, x),
+        StandardCoord.y.name: (StandardDim.station, y),
+        StandardCoord.z.name: (StandardDim.station, z),
+    }
+    data_vars = {}
+    for i, v in enumerate(variables):
+        arr = rng.random((station_n, frt_n, fp_n, realization_n), dtype=dtype)
+        data_vars[v] = xr.DataArray(
+            data=arr,
+            dims=[
+                StandardDim.station,
+                StandardDim.forecast_reference_time,
+                StandardDim.forecast_period,
+                StandardDim.realization,
+            ],
+            attrs={"units": f"dummy_unit_{i}"},
+        )
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            "data_type": DataType.simulated_forecast_ensemble,
+            "source": DummySource.simulation_ensemble_source,
         },
-        attrs={"data_type": DataType.simulated_forecast_ensemble},
     )
 
 
 @pytest.fixture
-def xarray_simulated_forecast_single() -> xr.DataArray:
+def xarray_simulated_forecast_single() -> xr.Dataset:
     """Return example simulations compatible with the internal datamodel.
 
     Uses forecast_period as dimension and coordinates.
     """
-    data = rng.random(
-        (variable_n, station_n, frt_n, fp_n),
-        dtype=dtype,
-    )
-
-    return xr.DataArray(
-        data=data,
-        name=DummySource.simulation_single_source,
-        dims=[
-            StandardDim.variable,
-            StandardDim.station,
-            StandardDim.forecast_reference_time,
-            StandardDim.forecast_period,
-        ],
-        coords={
-            StandardCoord.forecast_reference_time.name: forecast_reference_times,
-            StandardCoord.forecast_period.name: forecast_periods,
-            StandardCoord.variable.name: variables,
-            StandardCoord.time.name: (
-                (StandardDim.forecast_reference_time, StandardDim.forecast_period),
-                forecast_times,
-            ),
-            StandardCoord.units.name: (
-                StandardDim.variable,
-                [f"dummy_unit_{x}" for x in range(variable_n)],
-            ),
-            StandardCoord.station.name: (StandardDim.station, stations),
-            StandardCoord.lat.name: (StandardDim.station, lat),
-            StandardCoord.lon.name: (StandardDim.station, lon),
-            StandardCoord.x.name: (StandardDim.station, x),
-            StandardCoord.y.name: (StandardDim.station, y),
-            StandardCoord.z.name: (StandardDim.station, z),
+    coords = {
+        StandardCoord.forecast_reference_time.name: forecast_reference_times,
+        StandardCoord.forecast_period.name: forecast_periods,
+        StandardCoord.time.name: (
+            (StandardDim.forecast_reference_time, StandardDim.forecast_period),
+            forecast_times,
+        ),
+        StandardCoord.station.name: (StandardDim.station, stations),
+        StandardCoord.lat.name: (StandardDim.station, lat),
+        StandardCoord.lon.name: (StandardDim.station, lon),
+        StandardCoord.x.name: (StandardDim.station, x),
+        StandardCoord.y.name: (StandardDim.station, y),
+        StandardCoord.z.name: (StandardDim.station, z),
+    }
+    data_vars = {}
+    for i, v in enumerate(variables):
+        arr = rng.random((station_n, frt_n, fp_n), dtype=dtype)
+        data_vars[v] = xr.DataArray(
+            data=arr,
+            dims=[
+                StandardDim.station,
+                StandardDim.forecast_reference_time,
+                StandardDim.forecast_period,
+            ],
+            attrs={"units": f"dummy_unit_{i}"},
+        )
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=coords,
+        attrs={
+            "data_type": DataType.simulated_forecast_single,
+            "source": DummySource.simulation_single_source,
         },
-        attrs={"data_type": DataType.simulated_forecast_single},
     )
 
 
@@ -282,7 +281,7 @@ def xarray_simulated_forecast_single() -> xr.DataArray:
 def xarray_observed_forecast_single_datasource(
     tmp_path: Path,
     xarray_general_info_config: GeneralInfoConfig,
-    xarray_simulated_forecast_single: xr.DataArray,
+    xarray_simulated_forecast_single: xr.Dataset,
 ) -> NetCDF:
     """Return example forecast single datasource."""
     # Write the xarray to a NetCDF file in the temporary directory
@@ -337,6 +336,7 @@ def fews_general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
                 id="pair1",
                 obs="observed",
                 sim="source_single",
+                variable="discharge",
             ),
         ],
         cache_dir=cache_dir,
@@ -357,6 +357,7 @@ def xarray_general_info_config(cache_dir: Path) -> GeneralInfoConfig:
                 id="pair1",
                 obs="observed",
                 sim="source_single",
+                variable="var_1",
             ),
         ],
         cache_dir=cache_dir,
@@ -377,6 +378,7 @@ def fews_general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
                 id="pair1",
                 obs="observed",
                 sim="source_ensemble",
+                variable="discharge",
             ),
         ],
         cache_dir=cache_dir,
@@ -397,6 +399,7 @@ def fews_general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig
                 id="pair1",
                 obs="observed",
                 sim="source_probabilistic",
+                variable="discharge",
             ),
         ],
         cache_dir=cache_dir,
@@ -707,12 +710,12 @@ def fews_netcdf_compliant_file(
 
 @pytest.fixture
 def input_dataset_dummy_data_forecast_reference_time(
-    xarray_data_array_observation: xr.DataArray,
-    xarray_dataset_simulations_forecast_reference_time: xr.DataArray,
+    xarray_observed_historical: xr.Dataset,
+    xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> InputDataset:
     """Initialize datamodel with observations and forecasts (based on frt)."""
     return InputDataset(
-        data=[xarray_data_array_observation, xarray_dataset_simulations_forecast_reference_time],
+        data=[xarray_observed_historical, xarray_simulated_forecast_ensemble],
     )
 
 
@@ -724,8 +727,8 @@ def input_dataset_fews_netcdf_simulated_forecast_ensemble(
     """Initialize datamodel with observations and forecasts (based on frt)."""
     return InputDataset(
         data=[
-            fews_netcdf_observed_historical.get_data().data_array,
-            fews_netcdf_simulated_forecast_ensemble_frt.get_data().data_array,
+            fews_netcdf_observed_historical.get_data().dataset,
+            fews_netcdf_simulated_forecast_ensemble_frt.get_data().dataset,
         ],
     )
 
@@ -880,6 +883,7 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
                 id="pair1",
                 obs="observed",
                 sim="simulated",
+                variable="variable_1",
             ),
         ],
     )

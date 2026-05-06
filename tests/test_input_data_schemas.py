@@ -31,11 +31,11 @@ def test_time_coord_bad() -> None:
         HistoricalTimeCoord(**bad)
 
 
-def test_xarray_observations(xarray_observed_historical: xr.DataArray) -> None:
+def test_xarray_observations(xarray_observed_historical: xr.Dataset) -> None:
     ObservedHistorical.model_validate(xarray_observed_historical.to_dict(data=False))
 
 
-def test_xarray_observations_invalid_dims(xarray_observed_historical: xr.DataArray) -> None:
+def test_xarray_observations_invalid_dims(xarray_observed_historical: xr.Dataset) -> None:
     ds = xarray_observed_historical.copy()
     ds = ds.expand_dims("invalid_dimension")
     with pytest.raises(ValidationError):
@@ -43,18 +43,18 @@ def test_xarray_observations_invalid_dims(xarray_observed_historical: xr.DataArr
 
 
 def test_xarray_simulation_ensemble(
-    xarray_simulated_forecast_ensemble: xr.DataArray,
+    xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> None:
-    da = xarray_simulated_forecast_ensemble
-    schema = INPUT_SCHEMAS[da.attrs["data_type"]]
-    schema.model_validate(da.to_dict(data=False))
+    ds = xarray_simulated_forecast_ensemble
+    schema = INPUT_SCHEMAS[ds.attrs["data_type"]]
+    schema.model_validate(ds.to_dict(data=False))
 
 
 def test_xarray_simulation_no_ensemble(
-    xarray_simulated_forecast_ensemble: xr.DataArray,
+    xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> None:
-    da = xarray_simulated_forecast_ensemble.drop_vars("realization")
-    schema = INPUT_SCHEMAS[da.attrs["data_type"]]
+    ds = xarray_simulated_forecast_ensemble.drop_vars("realization")
+    schema = INPUT_SCHEMAS[ds.attrs["data_type"]]
 
     with pytest.raises(ValidationError):
-        schema.model_validate(da.to_dict(data=False))
+        schema.model_validate(ds.to_dict(data=False))

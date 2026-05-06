@@ -1,23 +1,15 @@
 """A collection of schemas for input data.
 
-The pipeline in the package ingests a number of predefined data inputs. To validate
-that the input data has the correct structure, we use Pydantic models in this module.
+The pipeline ingests a number of predefined input data types as ``xr.Dataset`` instances. To
+validate that the input data has the correct structure, we use Pydantic models in this module.
 
-Using the xarray.Dataset.to_dict(data=False) method on the provided Dataset instances
-returns a dictionary which can be used as input into a Pydantic model. Each of the
-accepted input datasets has its own dedicated schema, built up of smaller sub-models.
-This allows us to re-use much of the code and structure in this module, which keeps
-this module readable and understandable.
+Using ``xr.Dataset.to_dict(data=False)`` returns a dictionary that can be used as input to a
+Pydantic model. Each accepted data type has its own schema, built up of smaller sub-models.
 
 For now, we validate
-- Dimensions: name and data type
-- Coordinates: name, datatype, dimensions
-- Variables: names, coords, dims
-- Attributes
-
-On the following input datasets:
-- Observations
-- Simulations
+- Coordinates: name, dtype, dimensions
+- Data variables: required dims, required attributes (notably ``units``), CF-compliant naming
+- Dataset attributes (notably ``data_type``)
 """
 
 
@@ -27,7 +19,7 @@ On the following input datasets:
 from typing import Annotated, Literal
 
 import xarray as xr
-from pydantic import AfterValidator, BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field, RootModel
 
 from veriflow.constants import DataType, StandardDim
 
@@ -64,6 +56,11 @@ def check_dims(
     return validator
 
 
+# ---------------------------------------------------------------------------
+# Coordinate schemas
+# ---------------------------------------------------------------------------
+
+
 class HistoricalTimeCoord(BaseModel):
     dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.time}))]
     dtype: AllowedDTypeDateTime
@@ -96,14 +93,6 @@ class XYZCoord(BaseModel):
     dtype: AllowedDTypeFloat
 
 
-class VariableCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.variable}))]
-
-
-class UnitsCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.variable}))]
-
-
 class ForecastPeriodCoord(BaseModel):
     dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.forecast_period}))]
     dtype: AllowedDTypeTimeDelta
@@ -121,8 +110,6 @@ class ThresholdCoord(BaseModel):
 class BaseCoords(BaseModel):
     station: StationCoord
     station_name: StationCoord | None = None  # Optional station name coordinate
-    variable: VariableCoord
-    units: UnitsCoord
     lat: XYZCoord  # Always required lat, lon
     lon: XYZCoord
     x: XYZCoord | None = None  # Optional x, y, z
@@ -155,126 +142,185 @@ class SimulatedForecastProbabilisticCoords(BaseCoords):
 
 
 class ThresholdCoords(BaseModel):
-    """The structure of a threshold array."""
+    """The structure of a threshold dataset's coords."""
 
     station: StationCoord
     station_name: StationCoord | None = None  # Optional station name coordinate
-    variable: VariableCoord
     threshold: ThresholdCoord
+
+
+# ---------------------------------------------------------------------------
+# Data variable schemas
+# ---------------------------------------------------------------------------
 
 
 CFCompliantName = Annotated[
     str,
     Field(
         pattern=r"^[A-Za-z][A-Za-z0-9_]*$",
-        description="It is required that variable, dimension, attribute and group names"
-        "begin with a letter and be composed of letters, digits, and underscores."
+        description="It is required that variable, dimension, attribute and group names "
+        "begin with a letter and be composed of letters, digits, and underscores. "
         "(https://cfconventions.org/Data/cf-conventions/cf-conventions-1.12/cf-conventions.html#_naming_conventions)",
     ),
 ]
 
 
-class BaseAttrs(BaseModel):
-    data_type: str
+class DataVarAttrs(BaseModel):
+    """Required attributes on a data variable."""
 
-
-class Base(BaseModel):
-    dims: Annotated[
-        tuple[str, ...],
-        AfterValidator(
-            check_dims(
-                {
-                    StandardDim.variable,
-                    StandardDim.time,
-                    StandardDim.station,
-                },
-            ),
-        ),
-    ]
-    coords: BaseHistoricalCoords
-    attrs: BaseAttrs
-
-
-# Below, the final allowed input data structures
-class ObservedHistorical(Base):
-    pass
-
-
-class SimulatedHistorical(Base):
-    pass
-
-
-class SimulatedForecastSingle(Base):
-    dims: Annotated[
-        tuple[str, ...],
-        AfterValidator(
-            check_dims(
-                {
-                    StandardDim.variable,
-                    StandardDim.forecast_reference_time,
-                    StandardDim.forecast_period,
-                    StandardDim.station,
-                },
-            ),
-        ),
+    units: Annotated[
+        str,
         Field(
-            description="Tuple of dimensions. Must contain: variable, forecast_reference_time, "
-            "forecast_period and station.",
+            min_length=1,
+            description="Units of the data variable. Required for downstream interpretation and "
+            "CF-compliant output.",
         ),
     ]
-    coords: SimulatedForecastSingleCoords
+
+    model_config = {"extra": "allow"}
 
 
-class SimulatedForecastEnsemble(Base):
+class HistoricalDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims({StandardDim.station, StandardDim.time}),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
+class SimulatedForecastSingleDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
             check_dims(
                 {
-                    StandardDim.variable,
+                    StandardDim.station,
                     StandardDim.forecast_reference_time,
                     StandardDim.forecast_period,
+                },
+            ),
+        ),
+    ]
+    attrs: DataVarAttrs
+
+
+class SimulatedForecastEnsembleDataVar(BaseModel):
+    dims: Annotated[
+        tuple[str, ...],
+        AfterValidator(
+            check_dims(
+                {
                     StandardDim.station,
+                    StandardDim.forecast_reference_time,
+                    StandardDim.forecast_period,
                     StandardDim.realization,
                 },
             ),
         ),
     ]
-    coords: SimulatedForecastEnsembleCoords
+    attrs: DataVarAttrs
 
 
-class SimulatedForecastProbabilistic(Base):
+class SimulatedForecastProbabilisticDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
             check_dims(
                 {
-                    StandardDim.variable,
+                    StandardDim.station,
                     StandardDim.forecast_reference_time,
                     StandardDim.forecast_period,
-                    StandardDim.station,
                     StandardDim.threshold,
                 },
             ),
         ),
     ]
-    coords: SimulatedForecastProbabilisticCoords
+    attrs: DataVarAttrs
 
 
-class Thresholds(Base):
+class ThresholdDataVar(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            check_dims(
-                {
-                    StandardDim.variable,
-                    StandardDim.station,
-                    StandardDim.threshold,
-                },
-            ),
+            check_dims({StandardDim.station, StandardDim.threshold}),
         ),
     ]
+    # Threshold variables don't strictly need units; allow any attrs
+    attrs: dict | None = None
+
+
+# ---------------------------------------------------------------------------
+# Data variable collections (dict of CF-compliant name -> DataVar schema)
+#
+# Each ``RootModel`` validates that data variable names (the dict keys) are
+# CF-compliant via the ``CFCompliantName`` constraint, and that each value
+# matches the corresponding per-data-type ``*DataVar`` schema.
+# ---------------------------------------------------------------------------
+
+
+HistoricalDataVars = RootModel[dict[CFCompliantName, HistoricalDataVar]]
+SimulatedForecastSingleDataVars = RootModel[dict[CFCompliantName, SimulatedForecastSingleDataVar]]
+SimulatedForecastEnsembleDataVars = RootModel[
+    dict[CFCompliantName, SimulatedForecastEnsembleDataVar]
+]
+SimulatedForecastProbabilisticDataVars = RootModel[
+    dict[CFCompliantName, SimulatedForecastProbabilisticDataVar]
+]
+ThresholdDataVars = RootModel[dict[CFCompliantName, ThresholdDataVar]]
+
+
+# ---------------------------------------------------------------------------
+# Dataset-level attribute schemas
+# ---------------------------------------------------------------------------
+
+
+class BaseAttrs(BaseModel):
+    data_type: str
+
+    model_config = {"extra": "allow"}
+
+
+# ---------------------------------------------------------------------------
+# Top-level dataset schemas
+# ---------------------------------------------------------------------------
+
+
+class ObservedHistorical(BaseModel):
+    coords: BaseHistoricalCoords
+    data_vars: HistoricalDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedHistorical(BaseModel):
+    coords: BaseHistoricalCoords
+    data_vars: HistoricalDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedForecastSingle(BaseModel):
+    coords: SimulatedForecastSingleCoords
+    data_vars: SimulatedForecastSingleDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedForecastEnsemble(BaseModel):
+    coords: SimulatedForecastEnsembleCoords
+    data_vars: SimulatedForecastEnsembleDataVars
+    attrs: BaseAttrs
+
+
+class SimulatedForecastProbabilistic(BaseModel):
+    coords: SimulatedForecastProbabilisticCoords
+    data_vars: SimulatedForecastProbabilisticDataVars
+    attrs: BaseAttrs
+
+
+class Thresholds(BaseModel):
     coords: ThresholdCoords
+    data_vars: ThresholdDataVars
+    attrs: BaseAttrs
 
 
 # All input schemas, keyed by the corresponding data type
@@ -288,27 +334,25 @@ INPUT_SCHEMAS: dict[DataType, BaseModel] = {
 }
 
 
-def validate_input_data(data_array: xr.DataArray) -> BaseModel:
-    """Validate input data against the expected schema for the given data type.
+def validate_input_data(dataset: xr.Dataset) -> BaseModel:
+    """Validate an input ``xr.Dataset`` against its schema.
 
-    The data type is determined from the 'data_type' attribute of the provided xarray DataArray.
+    The data type is determined from the ``data_type`` attribute on the dataset.
     """
-    if not isinstance(data_array, xr.DataArray):
-        msg = f"Expected an xarray DataArray. Got: {type(data_array)}"
+    if not isinstance(dataset, xr.Dataset):
+        msg = f"Expected an xarray Dataset. Got: {type(dataset)}"
         raise TypeError(msg)
 
-    if "data_type" not in data_array.attrs:
-        msg = "Input data array is missing required 'data_type' attribute."
+    if "data_type" not in dataset.attrs:
+        msg = "Input dataset is missing required 'data_type' attribute."
         raise ValueError(msg)
 
-    data_type = data_array.attrs["data_type"]
+    data_type = dataset.attrs["data_type"]
     schema_class = INPUT_SCHEMAS.get(data_type)
     if not schema_class:
         msg = f"No input schema defined for data type: {data_type}"
         raise ValueError(msg)
 
-    # Convert the xarray DataArray to a dictionary that can be used as input for the Pydantic model
-    data_dict = data_array.to_dict(data=False)
-
-    # Validate the data against the schema
+    data_dict = dataset.to_dict(data=False)
     schema_class.model_validate(data_dict)
+    return schema_class

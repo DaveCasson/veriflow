@@ -300,24 +300,24 @@ def quantiles_to_cdf_data_array(
     # Define the steps and threshold index, for new shared coordinate
     thresholds = np.linspace(padded_vmin, padded_vmax, n_thresholds)
 
-    def interpolate_cdf(cdf: NDArray[np.floating]) -> NDArray:  # type:ignore[misc]
+    def interpolate_cdf(cdf: NDArray[np.float64]) -> NDArray[np.float64]:
         # If all NaN, return a NaN array
-        if np.all(np.isnan(cdf)):  # type:ignore[misc]
-            return np.full_like(thresholds, np.nan, dtype=float)  # type:ignore[misc]
+        if np.all(np.isnan(cdf)):
+            return np.full_like(thresholds, np.nan, dtype=np.float64)
 
         # If non all are Nan, require all not Nan and non-decreasing
-        check_non_decreasing_and_not_nan(cdf)  # type:ignore[misc]
-        probs = np.linspace(min_probability, max_probability, len(cdf))  # type:ignore[misc]
+        check_non_decreasing_and_not_nan(cdf)
+        probs = np.linspace(min_probability, max_probability, len(cdf))
         return np.interp(
             thresholds,
-            cdf,  # type:ignore[misc]
+            cdf,
             probs,
             left=0.0,
             right=1.0,
         )
 
     result: xr.DataArray = xr.apply_ufunc(
-        interpolate_cdf,  # type:ignore[misc]
+        interpolate_cdf,
         sim,
         input_core_dims=[["realization"]],  # type:ignore[misc]
         output_core_dims=[["threshold"]],  # type:ignore[misc]
@@ -447,52 +447,50 @@ class FewsNetCDF(BaseDatasource):
         self.config: FewsNetCDFConfig = config
 
     @staticmethod
-    def convert_dataset_to_dataarray(
+    def standardize_dataset(
         dataset: xr.Dataset,
-        source: str,
         data_type: DataType,
-    ) -> xr.DataArray:
-        """Transform dataset to internal datamodel."""
+    ) -> xr.Dataset:
+        """Standardize a fetched dataset to the internal datamodel.
 
-        # Extract the variable units from data variables
-        def _get_unit(da: xr.DataArray) -> str:
-            if "units" not in da.attrs:  # type:ignore[misc]
-                return "unknown"
-            return da.attrs["units"]  # type:ignore[no-any-return, misc]
-
-        units = [_get_unit(dataset[da]) for da in dataset]
-
-        # Stack the variables along dimension variable
-        da = dataset.to_dataarray(dim=StandardDim.variable, name=source)
-
-        # Set the configured data type as attribute
-        da.attrs["data_type"] = data_type  # type:ignore[misc]
-
+        Ensures the station dim is indexed by the station id, sets standard dim ordering on each
+        data variable, and ensures each data variable carries a ``units`` attribute (filling in
+        ``"unknown"`` when missing).
+        """
         # Set the station_id as index on station dim
         #   to ensure automatic alignment based on this coord later on.
-        da = da.assign_coords(
+        dataset = dataset.assign_coords(
             {
-                StandardDim.station: da[StandardCoord.station.name].to_numpy(),  # type:ignore[misc]
+                StandardDim.station: dataset[StandardCoord.station.name].to_numpy(),  # type:ignore[misc]
             },
         )
-        # Set the units as auxillary coordinate on new dimension variable
-        da = da.assign_coords(
-            {StandardCoord.units.name: (StandardDim.variable, units)},  # type:ignore[misc]
-        )
 
+        # Ensure each data var has a units attribute
+        for var_name in dataset.data_vars:
+            if "units" not in dataset[var_name].attrs:  # type:ignore[misc]
+                dataset[var_name].attrs["units"] = "unknown"  # type:ignore[misc]
+
+        # Standardize dim order per data variable
         if data_type in FORECAST_DATA_TYPES:
-            return da.transpose(
-                StandardDim.variable,
+            transpose_dims = (
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
                 StandardDim.forecast_period,
                 ...,
             )
-        # Historical simulations or observations
-        return da.transpose(StandardDim.variable, StandardDim.station, StandardDim.time, ...)
+        else:
+            # Historical simulations or observations
+            transpose_dims = (StandardDim.station, StandardDim.time, ...)  # type:ignore[assignment]
+
+        # Standardize dim order across all data variables.
+        dataset = dataset.transpose(*transpose_dims)
+
+        # Set the configured data type as a dataset-level attribute
+        dataset.attrs["data_type"] = data_type  # type:ignore[misc]
+        return dataset
 
     def fetch_data(self) -> Self:
-        """Retrieve fewsnetcdf content as an xarray DataArray."""
+        """Retrieve fewsnetcdf content as an xarray Dataset."""
         # Configure pre-processing
         preprocessor = Preprocessor(
             fews_netcdf_kind=self.config.netcdf_kind,
@@ -548,22 +546,18 @@ class FewsNetCDF(BaseDatasource):
         # Load into memory, in the future support dask
         dataset.load()
 
-        # Convert datasets to data_array
-        data_array = self.convert_dataset_to_dataarray(
-            dataset,
-            self.config.source,
-            self.config.data_type,
-        )
+        # Standardize to internal datamodel (dim order, units attr, dataset-level data_type)
+        dataset = self.standardize_dataset(dataset, self.config.data_type)
 
-        # For probabilistic data types, transform the data array so that
+        # For probabilistic data types, transform each data variable so that
         #   all cdf's share the same threshold dim
         if self.config.data_type == DataType.simulated_forecast_probabilistic:
-            if len(data_array[StandardDim.variable]) > 1:
-                msg = "Multiple variables for simulated_forecast_probabilistic not yet supported"
-                raise NotImplementedError(msg)
-            data_array = quantiles_to_cdf_data_array(data_array)
+            dataset = dataset.map(
+                quantiles_to_cdf_data_array,
+                keep_attrs=True,
+            )
 
         # Assign to self
-        self.data_array = data_array
+        self.dataset = dataset
 
         return self
