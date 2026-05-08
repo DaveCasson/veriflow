@@ -20,6 +20,7 @@ class DataSourceKind(StrEnum):
     FEWSWEBSERVICE = "fewswebservice"
     CSV = "csv"
     NETCDF = "netcdf"
+    ZARR = "zarr"
 
 
 class DataSinkKind(StrEnum):

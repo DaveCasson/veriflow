@@ -39,6 +39,7 @@ from veriflow.configuration.default.datasources import (
     FewsNetCDFConfig,
     FewsWebserviceConfig,
     NetCDFConfig,
+    ZarrConfig,
 )
 from veriflow.configuration.default.scores import (
     CategoricalScoresConfig,
@@ -109,6 +110,7 @@ class Config(BaseModel):
             FewsWebserviceConfig,
             CsvConfig,
             NetCDFConfig,
+            ZarrConfig,
         ]
         default_scores_config: list[type[BaseScoreConfig]] = [
             CrpsForEnsembleConfig,

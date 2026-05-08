@@ -23,6 +23,8 @@ dependencies = [
     "importlib-metadata>=7.0",
     "requests~=2.0",
     "dash~=4.0",
+    "zarr>=3.1.6",
+    "s3fs>=2026.4.0",
 ]
 
 [project.scripts]
@@ -54,11 +56,18 @@ disallow_any_explicit = true
 init_forbid_extra = true
 init_typed = true
 
+[[tool.mypy.overrides]]
+# zarr 3.x uses Python 3.12 type-parameter syntax in its sources, which mypy parses
+# at our configured python_version = "3.11". Skip following imports into zarr to
+# avoid spurious syntax errors; we only interact with zarr through xarray's API.
+module = "zarr.*"
+follow_imports = "skip"
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
 indent-width = 4
-include = ["src/**/*.py", "tests/**/*.py"]
+include = ["src/**/*.py", "tests/**/*.py",] # soon add  "examples/**/*.ipynb"
 
 [tool.ruff.format]
 indent-style = "space"
@@ -99,6 +108,7 @@ dev = [
     "matplotlib>=3.10.8",
     "mypy>=1.20.2",
     "myst-parser>=5.0.0",
+    "nbqa>=1.9.1",
     "nbsphinx>=0.9.8",
     "pandas-stubs==2.2.2.240603",
     "pandoc>=2.4",
@@ -113,4 +123,7 @@ dev = [
     "sphinx-gallery>=0.20.0",
     "types-pyyaml==6.0.12.20240311",
     "types-requests==2.32.0.20240712",
+]
+app = [
+    "dash>=4.1.0",
 ]
