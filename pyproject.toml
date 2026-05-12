@@ -22,7 +22,6 @@ dependencies = [
     "pyyaml~=6.0",
     "importlib-metadata>=7.0",
     "requests~=2.0",
-    "dash~=4.0",
     "zarr>=3.1.6",
     "s3fs>=2026.4.0",
 ]
@@ -108,7 +107,6 @@ dev = [
     "matplotlib>=3.10.8",
     "mypy>=1.20.2",
     "myst-parser>=5.0.0",
-    "nbqa>=1.9.1",
     "nbsphinx>=0.9.8",
     "pandas-stubs==2.2.2.240603",
     "pandoc>=2.4",
@@ -123,7 +121,4 @@ dev = [
     "sphinx-gallery>=0.20.0",
     "types-pyyaml==6.0.12.20240311",
     "types-requests==2.32.0.20240712",
-]
-app = [
-    "dash>=4.1.0",
 ]

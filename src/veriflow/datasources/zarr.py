@@ -4,15 +4,16 @@ from typing import ClassVar, Self
 
 import xarray as xr
 
-from veriflow.configuration.default.datasources import ZarrConfig
+from veriflow.configuration.default.datasources import S3AuthConfig, ZarrConfig
 from veriflow.constants import (
     DataType,
 )
 from veriflow.datasources.base import BaseDatasource
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     "Zarr",
     "ZarrConfig",
+    "S3AuthConfig",
 ]
 
 

@@ -51,6 +51,8 @@ def test_fetch_data_local_store(
     datasource.fetch_data()
 
     assert datasource.dataset.attrs["data_type"] == DataType.observed_historical
+    assert datasource.dataset.attrs["source"] == "observation_source"
+
     xr.testing.assert_equal(
         datasource.dataset.drop_attrs(),
         xarray_observed_historical.drop_attrs(),
@@ -96,10 +98,10 @@ def test_unsupported_data_type_raises(
 
 def test_is_remote_path() -> None:
     """The remote-path heuristic detects scheme-style URLs."""
-    assert Zarr._is_remote_path("s3://bucket/key/store.zarr") is True
-    assert Zarr._is_remote_path("gs://bucket/key/store.zarr") is True
-    assert Zarr._is_remote_path("/tmp/store.zarr") is False  # noqa: S108
-    assert Zarr._is_remote_path(r"C:\Users\me\store.zarr") is False
+    assert Zarr._is_remote_path("s3://bucket/key/store.zarr")
+    assert Zarr._is_remote_path("gs://bucket/key/store.zarr")
+    assert not Zarr._is_remote_path("/tmp/store.zarr")  # noqa: S108
+    assert not Zarr._is_remote_path(r"C:\Users\me\store.zarr")
 
 
 def test_build_storage_options_local_returns_none(
