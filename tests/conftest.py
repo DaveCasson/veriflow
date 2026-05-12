@@ -17,6 +17,7 @@ import yaml
 
 from veriflow.configuration import Config
 from veriflow.configuration.base import GeneralInfoConfig, IdMappingConfig
+from veriflow.configuration.config import SupportedSchemaVersion
 from veriflow.configuration.default.datasinks import CFCompliantNetCDFConfig
 from veriflow.configuration.default.datasources import (
     ArchiveKind,
@@ -915,7 +916,7 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
     )
 
     config_obj = Config(
-        version="0.1.0",
+        version=SupportedSchemaVersion.V0,
         general=general,
         datasources=[datasource_config],
         scores=[score_config],
