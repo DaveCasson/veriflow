@@ -915,7 +915,7 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
     )
 
     config_obj = Config(
-        fileversion="0.1.0",
+        version="0.1.0",
         general=general,
         datasources=[datasource_config],
         scores=[score_config],

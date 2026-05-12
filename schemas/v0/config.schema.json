@@ -930,6 +930,14 @@
       "title": "SupportedContinuousScore",
       "type": "string"
     },
+    "SupportedSchemaVersion": {
+      "description": "Supported schema versions for the config file.",
+      "enum": [
+        "v0"
+      ],
+      "title": "SupportedSchemaVersion",
+      "type": "string"
+    },
     "ThresholdEvent": {
       "description": "An event definition for a threshold.",
       "properties": {
@@ -1112,9 +1120,9 @@
     }
   },
   "properties": {
-    "fileversion": {
-      "title": "Fileversion",
-      "type": "string"
+    "version": {
+      "$ref": "#/$defs/SupportedSchemaVersion",
+      "default": "v0"
     },
     "general": {
       "$ref": "#/$defs/GeneralInfoConfig"
@@ -1223,7 +1231,6 @@
     }
   },
   "required": [
-    "fileversion",
     "general",
     "datasources",
     "scores"

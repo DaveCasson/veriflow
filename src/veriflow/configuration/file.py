@@ -35,15 +35,15 @@ class ConfigFile:
         if conftype is ConfigKind.RUNINFO:
             # parse the runinfo into a yaml
             yamlcontent = {
-                "fileversion": "0.0.1",
+                "version": "0.0.1",
             }
             # TODO(AU): Implement parsing of a runinfo xml file to valid config dict # noqa: FIX002
             #   https://github.com/Deltares/veriflow/issues/8
         elif conftype is ConfigKind.YAML:
             with config_file.open() as cf:
                 yamlcontent = yaml.safe_load(cf)
-            # conversion from older fileversion to current schema
-            # NOT IMPLEMENTED YET, because we have not had a fileversion update
+            # conversion from older version to current schema
+            # NOT IMPLEMENTED YET, because we have not had a version update
 
         self.filename = config_file
         self.configtype = config_type

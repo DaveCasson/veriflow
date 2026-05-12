@@ -25,6 +25,7 @@ To generate a yaml / json file with the json representation of this schema:
 
 import json
 from collections.abc import Sequence
+from enum import StrEnum
 from functools import reduce
 from pathlib import Path
 from typing import Annotated, TypeVar
@@ -66,9 +67,13 @@ TItem = TypeVar(
 #: Public URL where the schema is published via GitHub Pages. Consumers can
 #: reference this URL from YAML configs for IDE validation, e.g. via the
 #: ``# yaml-language-server: $schema=...`` modeline.
-SCHEMA_PUBLIC_URL = (
-    f"https://deltares.github.io/veriflow/{SCHEMA_VERSION}/config.schema.json"
-)
+SCHEMA_PUBLIC_URL = f"https://deltares.github.io/veriflow/{SCHEMA_VERSION}/config.schema.json"
+
+
+class SupportedSchemaVersion(StrEnum):
+    """Supported schema versions for the config file."""
+
+    V0 = "v0"
 
 
 class Config(BaseModel):
@@ -76,7 +81,7 @@ class Config(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    fileversion: str
+    version: SupportedSchemaVersion = SupportedSchemaVersion.V0
     general: GeneralInfoConfig
     datasources: Annotated[Sequence[BaseDatasourceConfig], Field(min_length=1)]
     scores: Annotated[Sequence[BaseScoreConfig], Field(min_length=1)]
