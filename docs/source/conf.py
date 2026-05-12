@@ -51,6 +51,11 @@ intersphinx_mapping = {
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
+# Copy the versioned JSON schemas into the published site at the root, so they
+# are reachable at e.g. https://deltares.github.io/veriflow/v0/config.schema.json.
+# This is the canonical URL referenced from YAML configs via the
+# ``# yaml-language-server: $schema=...`` modeline for IDE validation.
+html_extra_path = ["../../schemas"]
 html_title = "Verification "
 html_theme_options = {
     "logo": {

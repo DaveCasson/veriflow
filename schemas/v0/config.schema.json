@@ -1,4 +1,5 @@
 {
+  "$id": "https://deltares.github.io/veriflow/v0/config.schema.json",
   "$defs": {
     "ArchiveKind": {
       "description": "Archive kind.",

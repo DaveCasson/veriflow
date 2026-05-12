@@ -48,6 +48,7 @@ from veriflow.configuration.default.scores import (
     CrpsForEnsembleConfig,
     RankHistogramConfig,
 )
+from veriflow.constants import SCHEMA_VERSION
 
 from .base import (
     BaseDatasinkConfig,
@@ -60,6 +61,13 @@ from .base import (
 TItem = TypeVar(
     "TItem",
     bound=BaseDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig,
+)
+
+#: Public URL where the schema is published via GitHub Pages. Consumers can
+#: reference this URL from YAML configs for IDE validation, e.g. via the
+#: ``# yaml-language-server: $schema=...`` modeline.
+SCHEMA_PUBLIC_URL = (
+    f"https://deltares.github.io/veriflow/{SCHEMA_VERSION}/config.schema.json"
 )
 
 
@@ -164,6 +172,11 @@ class Config(BaseModel):
             datasinks: CombinedDatasinkConfig | None = None  # type:ignore[valid-type]
 
         schema = ConfigSchema.model_json_schema()  # type:ignore[misc]
+
+        # Stamp the schema with a stable public ``$id`` so it is self-identifying
+        # when consumed via the ``# yaml-language-server: $schema=...`` modeline
+        # (or equivalent JSON ``$schema`` reference) in user configs.
+        schema = {"$id": SCHEMA_PUBLIC_URL, **schema}  # type:ignore[misc]
 
         # Write with explicit LF line endings so schema diffs are OS-independent.
         with output_path.open("w", encoding="utf-8", newline="\n") as f:
