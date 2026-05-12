@@ -25,6 +25,7 @@ To generate a yaml / json file with the json representation of this schema:
 
 import json
 from collections.abc import Sequence
+from enum import StrEnum
 from functools import reduce
 from pathlib import Path
 from typing import Annotated, TypeVar
@@ -39,6 +40,7 @@ from veriflow.configuration.default.datasources import (
     FewsNetCDFConfig,
     FewsWebserviceConfig,
     NetCDFConfig,
+    ZarrConfig,
 )
 from veriflow.configuration.default.scores import (
     CategoricalScoresConfig,
@@ -47,6 +49,7 @@ from veriflow.configuration.default.scores import (
     CrpsForEnsembleConfig,
     RankHistogramConfig,
 )
+from veriflow.constants import SCHEMA_VERSION
 
 from .base import (
     BaseDatasinkConfig,
@@ -61,13 +64,24 @@ TItem = TypeVar(
     bound=BaseDatasourceConfig | BaseDatasinkConfig | BaseScoreConfig,
 )
 
+#: Public URL where the schema is published via GitHub Pages. Consumers can
+#: reference this URL from YAML configs for IDE validation, e.g. via the
+#: ``# yaml-language-server: $schema=...`` modeline.
+SCHEMA_PUBLIC_URL = f"https://deltares.github.io/veriflow/{SCHEMA_VERSION}/config.schema.json"
+
+
+class SupportedSchemaVersion(StrEnum):
+    """Supported schema versions for the config file."""
+
+    V0 = "v0"
+
 
 class Config(BaseModel):
     """Config object for running the verification pipeline."""
 
     model_config = ConfigDict(validate_assignment=True)
 
-    fileversion: str
+    version: SupportedSchemaVersion = SupportedSchemaVersion.V0
     general: GeneralInfoConfig
     datasources: Annotated[Sequence[BaseDatasourceConfig], Field(min_length=1)]
     scores: Annotated[Sequence[BaseScoreConfig], Field(min_length=1)]
@@ -109,6 +123,7 @@ class Config(BaseModel):
             FewsWebserviceConfig,
             CsvConfig,
             NetCDFConfig,
+            ZarrConfig,
         ]
         default_scores_config: list[type[BaseScoreConfig]] = [
             CrpsForEnsembleConfig,
@@ -162,6 +177,11 @@ class Config(BaseModel):
             datasinks: CombinedDatasinkConfig | None = None  # type:ignore[valid-type]
 
         schema = ConfigSchema.model_json_schema()  # type:ignore[misc]
+
+        # Stamp the schema with a stable public ``$id`` so it is self-identifying
+        # when consumed via the ``# yaml-language-server: $schema=...`` modeline
+        # (or equivalent JSON ``$schema`` reference) in user configs.
+        schema = {"$id": SCHEMA_PUBLIC_URL, **schema}  # type:ignore[misc]
 
         # Write with explicit LF line endings so schema diffs are OS-independent.
         with output_path.open("w", encoding="utf-8", newline="\n") as f:

@@ -6,10 +6,12 @@ from .fewsnetcdf import FewsNetCDF, FewsNetCDFConfig
 from .fewswebservice import FewsWebservice, FewsWebserviceConfig
 from .inputschemas import validate_input_data
 from .netcdf import NetCDF, NetCDFConfig
+from .zarr import Zarr, ZarrConfig
 
 DEFAULT_DATASOURCES: list[type[BaseDatasource]] = [
     FewsNetCDF,
     FewsWebservice,
     NetCDF,
     Csv,
+    Zarr,
 ]

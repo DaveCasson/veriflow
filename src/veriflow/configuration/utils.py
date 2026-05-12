@@ -225,3 +225,59 @@ class FewsWebserviceAuthConfig(BaseSettings):
     url: AnyUrl
     username: SecretStr
     password: SecretStr
+
+
+class S3AuthConfig(BaseSettings):
+    """
+    Get S3 credentials and connection info safely from environment variables.
+
+    This config class inherits from :class:`pydantic_settings.BaseSettings`,
+    that will try to infer field values from environment variables.
+
+    Environment variables (all optional):
+
+    - ``S3_ENDPOINT_URL``: Custom S3 endpoint (e.g. for MinIO or non-AWS S3).
+    - ``S3_REGION_NAME``: AWS region.
+    - ``S3_ACCESS_KEY_ID``: Access key id.
+    - ``S3_SECRET_ACCESS_KEY``: Secret access key.
+    - ``S3_SESSION_TOKEN``: Session token (for temporary credentials).
+    - ``S3_ANON``: Set to ``true`` for anonymous access to public buckets.
+
+    Fields default to ``None`` (or ``False`` for ``anon``) so that callers can rely on
+    ``s3fs`` / ``botocore`` falling back to standard AWS credential discovery (e.g.
+    ``~/.aws/credentials``, instance metadata) when a value is not explicitly set.
+
+    see: https://docs.pydantic.dev/latest/concepts/pydantic_settings/#usage
+    """
+
+    model_config = SettingsConfigDict(env_prefix="S3_")
+
+    endpoint_url: AnyUrl | None = None
+    region_name: str | None = None
+    access_key_id: SecretStr | None = None
+    secret_access_key: SecretStr | None = None
+    session_token: SecretStr | None = None
+    anon: bool = False
+
+    def to_storage_options(self) -> dict[str, object]:
+        """Build a ``storage_options`` dict for ``xr.open_zarr`` / ``s3fs``.
+
+        Only keys with non-``None`` values are included. ``SecretStr`` values are
+        unwrapped to their plain string form so that ``s3fs`` can use them.
+        """
+        client_kwargs: dict[str, str] = {}
+        if self.endpoint_url is not None:
+            client_kwargs["endpoint_url"] = str(self.endpoint_url)
+        if self.region_name is not None:
+            client_kwargs["region_name"] = self.region_name
+
+        options: dict[str, object] = {"anon": self.anon}
+        if self.access_key_id is not None:
+            options["key"] = self.access_key_id.get_secret_value()
+        if self.secret_access_key is not None:
+            options["secret"] = self.secret_access_key.get_secret_value()
+        if self.session_token is not None:
+            options["token"] = self.session_token.get_secret_value()
+        if client_kwargs:
+            options["client_kwargs"] = client_kwargs
+        return options

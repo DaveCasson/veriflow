@@ -20,6 +20,7 @@ class DataSourceKind(StrEnum):
     FEWSWEBSERVICE = "fewswebservice"
     CSV = "csv"
     NETCDF = "netcdf"
+    ZARR = "zarr"
 
 
 class DataSinkKind(StrEnum):
@@ -326,3 +327,6 @@ def _set_version_info() -> tuple[str, str]:
 
 NAME = "veriflow"
 VERSION, VERSION_FULL = _set_version_info()
+SCHEMA_VERSION = f"v{VERSION.split('.')[0]}"
+# Major version only, to allow for breaking changes in the schema when there are breaking changes
+# in the code

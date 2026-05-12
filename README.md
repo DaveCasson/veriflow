@@ -34,7 +34,7 @@ Or using [uv](https://docs.astral.sh/uv/):
 uv pip install veriflow
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+See [CONTRIBUTING.md](https://github.com/Deltares/veriflow/blob/main/CONTRIBUTING.md) for development setup.
 
 
 

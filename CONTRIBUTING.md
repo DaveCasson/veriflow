@@ -47,6 +47,9 @@ We use pytest for testing, ruff for linting and code formatting and mypy for typ
 
 Ruff formatting and linting is also part of the pre-commit hook.
 
+#### Generating documentation
+We use sphinx for generating our documentation website. In case you made changes to the docs, please test wether the build works. You can build the docs as follows.
+- ` .\docs\make html`
 
 #### Commit your changes to your branch
 Please use separate commits for separate topics or actions. Use the commit message to concisely describe what the commit is about. Always start with a capital letter and use a reference to an issue number when applicable.

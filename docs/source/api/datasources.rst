@@ -9,6 +9,7 @@ Datasources
    veriflow.datasources.fewsnetcdf
    veriflow.datasources.csv
    veriflow.datasources.netcdf
+   veriflow.datasources.zarr
    veriflow.datasources.base
 
    

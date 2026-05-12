@@ -1,4 +1,5 @@
 {
+  "$id": "https://deltares.github.io/veriflow/v0/config.schema.json",
   "$defs": {
     "ArchiveKind": {
       "description": "Archive kind.",
@@ -809,6 +810,87 @@
       "title": "RankHistogramConfig",
       "type": "object"
     },
+    "S3AuthConfig": {
+      "additionalProperties": false,
+      "description": "Get S3 credentials and connection info safely from environment variables.\n\nThis config class inherits from :class:`pydantic_settings.BaseSettings`,\nthat will try to infer field values from environment variables.\n\nEnvironment variables (all optional):\n\n- ``S3_ENDPOINT_URL``: Custom S3 endpoint (e.g. for MinIO or non-AWS S3).\n- ``S3_REGION_NAME``: AWS region.\n- ``S3_ACCESS_KEY_ID``: Access key id.\n- ``S3_SECRET_ACCESS_KEY``: Secret access key.\n- ``S3_SESSION_TOKEN``: Session token (for temporary credentials).\n- ``S3_ANON``: Set to ``true`` for anonymous access to public buckets.\n\nFields default to ``None`` (or ``False`` for ``anon``) so that callers can rely on\n``s3fs`` / ``botocore`` falling back to standard AWS credential discovery (e.g.\n``~/.aws/credentials``, instance metadata) when a value is not explicitly set.\n\nsee: https://docs.pydantic.dev/latest/concepts/pydantic_settings/#usage",
+      "properties": {
+        "endpoint_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint Url"
+        },
+        "region_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region Name"
+        },
+        "access_key_id": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Access Key Id"
+        },
+        "secret_access_key": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Secret Access Key"
+        },
+        "session_token": {
+          "anyOf": [
+            {
+              "format": "password",
+              "type": "string",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Token"
+        },
+        "anon": {
+          "default": false,
+          "title": "Anon",
+          "type": "boolean"
+        }
+      },
+      "title": "S3AuthConfig",
+      "type": "object"
+    },
     "SupportedCategoricalScores": {
       "description": "The supported categorical scores.\n\nExplicitly excluded scores\n- gilberts_skill_score              (identical to equitable_threat_score)\n- threat_score                      (identical to critical_success_index)\n- heidke_skill_score                (identical to cohens_kappa)\n- frequency_bias                    (identical to bias score)\n- fraction_correct                  (identical to accuracy)\n- hanssen_and_kuipers_discriminant  (identical to peirce_skill_score)\n- true_skill_statistic              (identical to peirce_skill_score)\n- yules_q                           (identical to odds_ratio_skill_score)\n- positive_predictive_value         (identical to precision)\n- success_ratio                     (identical to precision)\n- probability_of_detection          (identical to hit_rate)\n- true_positive_rate                (identical to hit rate)\n- sensitivity                       (identical to hit rate)\n- recall                            (identical to hit rate)\n- true_negative_rate                (identical to specificity)\n- probability of false detection    (identical to false alarm rate)",
       "enum": [
@@ -848,6 +930,14 @@
       "title": "SupportedContinuousScore",
       "type": "string"
     },
+    "SupportedSchemaVersion": {
+      "description": "Supported schema versions for the config file.",
+      "enum": [
+        "v0"
+      ],
+      "title": "SupportedSchemaVersion",
+      "type": "string"
+    },
     "ThresholdEvent": {
       "description": "An event definition for a threshold.",
       "properties": {
@@ -883,7 +973,7 @@
       "type": "string"
     },
     "VerificationPair": {
-      "description": "Configuration for a verification pair.\n\nShould consist of an id and reference to a source for\nobservations and simulations. The id can be any arbitrary string, and the obs and sim fields\nshould contain an exact reference to a configured source in the datasource configuration.",
+      "description": "Configuration for a verification pair.\n\nShould consist of an id and reference to a source for\nobservations and simulations. The id can be any arbitrary string, and the obs and sim fields\nshould contain an exact reference to a configured source in the datasource configuration.\nThe variable field selects which physical variable from each source's dataset to verify;\nafter id mapping the same internal variable name must exist as a data variable on both the\nobservation and simulation source.",
       "properties": {
         "id": {
           "title": "Id",
@@ -902,12 +992,19 @@
           "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
           "title": "Sim",
           "type": "string"
+        },
+        "variable": {
+          "description": "The variable name references a physical variable to be verified. Must match the variable definition in the datasource. IdMapping can be set in the general config, to map external variables to an internal definition. This is needed when you want to verify data from different sources, where the variable definition is not equal.",
+          "minLength": 1,
+          "title": "Variable",
+          "type": "string"
         }
       },
       "required": [
         "id",
         "obs",
-        "sim"
+        "sim",
+        "variable"
       ],
       "title": "VerificationPair",
       "type": "object"
@@ -944,12 +1041,88 @@
       ],
       "title": "VerificationPeriod",
       "type": "object"
+    },
+    "ZarrConfig": {
+      "additionalProperties": true,
+      "description": "A Zarr config element.\n\nReads a single Zarr store via :func:`xarray.open_zarr`. The ``path`` may point to a\nlocal directory or a remote location (e.g. ``s3://bucket/key/store.zarr``). When the\npath uses an ``s3://`` URL, credentials and connection details are taken from\n``auth_config`` (an :class:`S3AuthConfig`), which is populated from environment\nvariables prefixed with ``S3_``. Additional ``storage_options`` are merged on top of\nthe ones derived from ``auth_config`` and forwarded to ``xr.open_zarr``.",
+      "properties": {
+        "import_adapter": {
+          "const": "zarr",
+          "title": "Import Adapter",
+          "type": "string"
+        },
+        "source": {
+          "description": "The source indicates the origin of the data. For simulated data this may, for example, refer to the model that produced the data. For observation this may, for example, be simply 'observed' or 'my_validated_observations_database'. The source should start with a letter, consists of only letters, digits and underscores. Spaces or punctuation are disallowed.",
+          "minLength": 1,
+          "pattern": "^[A-Za-z][A-Za-z0-9_]*$",
+          "title": "Source",
+          "type": "string"
+        },
+        "data_type": {
+          "$ref": "#/$defs/DataType"
+        },
+        "path": {
+          "description": "Path to a single Zarr store. Local filesystem path (absolute or relative) or a remote URL such as 's3://bucket/key/store.zarr'.",
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "auth_config": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/S3AuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Authentication configuration for remote stores. Only consulted when 'path' points to an 's3://' location. Credentials are loaded from S3_-prefixed environment variables; instantiate as 'auth_config: {}' in YAML to enable env-based loading."
+        },
+        "storage_options": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Additional storage_options forwarded to xr.open_zarr. Merged on top of the options derived from 'auth_config'. Use this for advanced fsspec / s3fs settings not exposed by S3AuthConfig.",
+          "title": "Storage Options"
+        },
+        "consolidated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to use consolidated metadata when opening the store. Forwarded to xr.open_zarr. Default ('None') lets xarray auto-detect.",
+          "title": "Consolidated"
+        }
+      },
+      "required": [
+        "import_adapter",
+        "source",
+        "data_type",
+        "path"
+      ],
+      "title": "ZarrConfig",
+      "type": "object"
     }
   },
   "properties": {
-    "fileversion": {
-      "title": "Fileversion",
-      "type": "string"
+    "version": {
+      "$ref": "#/$defs/SupportedSchemaVersion",
+      "default": "v0"
     },
     "general": {
       "$ref": "#/$defs/GeneralInfoConfig"
@@ -961,7 +1134,8 @@
             "csv": "#/$defs/CsvConfig",
             "fewsnetcdf": "#/$defs/FewsNetCDFConfig",
             "fewswebservice": "#/$defs/FewsWebserviceConfig",
-            "netcdf": "#/$defs/NetCDFConfig"
+            "netcdf": "#/$defs/NetCDFConfig",
+            "zarr": "#/$defs/ZarrConfig"
           },
           "propertyName": "import_adapter"
         },
@@ -977,6 +1151,9 @@
           },
           {
             "$ref": "#/$defs/NetCDFConfig"
+          },
+          {
+            "$ref": "#/$defs/ZarrConfig"
           }
         ]
       },
@@ -1054,7 +1231,6 @@
     }
   },
   "required": [
-    "fileversion",
     "general",
     "datasources",
     "scores"

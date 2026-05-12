@@ -4,6 +4,7 @@ import pytest
 from pytest_lazy_fixtures import lf
 
 from veriflow.configuration.base import GeneralInfoConfig
+from veriflow.configuration.config import SupportedSchemaVersion
 from veriflow.configuration.default.scores import (
     BaseScoreConfig,
     CategoricalScoresConfig,
@@ -31,7 +32,7 @@ def test_pipeline_fewsnetcdf(
 ) -> None:
     """Full integration tests of the pipeline."""
     config = Config(
-        fileversion="0.0.1",
+        version=SupportedSchemaVersion.V0,
         general=fews_netcdf_observed_historical.config.general,
         datasources=[
             fews_netcdf_observed_historical.config,
@@ -60,7 +61,7 @@ def test_pipeline_xarray_categorical_scores(
     )
 
     config = Config(
-        fileversion="0.0.1",
+        version=SupportedSchemaVersion.V0,
         general=xarray_general_info_config,
         datasources=[
             xarray_observed_historical_datasource.config,
