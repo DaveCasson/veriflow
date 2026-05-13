@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from veriflow.configuration import Config
 from veriflow.configuration.base import IdMap, IdMappingConfig
-from veriflow.configuration.default.scores import CrpsForEnsembleConfig
+from veriflow.configuration.default.scores import ContinuousScoresConfig, CrpsForEnsembleConfig
 from veriflow.configuration.utils import (
     FewsWebserviceAuthConfig,
     ForecastPeriods,
@@ -167,3 +167,15 @@ def test_score_config_with_invalid_pair_reference(
     modified_config["verification_pair_ids"] = ["invalid_id"]  # type:ignore[misc]
     with pytest.raises(ValueError, match="Pair id"):
         _ = CrpsForEnsembleConfig(**modified_config)  # type:ignore[misc]
+
+
+def test_score_config_with_nse_and_no_reduce_dims_raises_validation_error(
+    score_config_continuous: ContinuousScoresConfig,
+) -> None:
+    """Test that if nse is in scores, reduce_dims is not empty."""
+    score_config_continuous_copy = deepcopy(score_config_continuous.model_dump())  # type:ignore[misc]
+    score_config_continuous_copy["reduce_dims"] = []  # type:ignore[misc]
+
+    match_str = "NSE: need at least one dimension to be reduced."
+    with pytest.raises(ValueError, match=match_str):
+        _ = ContinuousScoresConfig(**score_config_continuous_copy)  # type:ignore[misc]

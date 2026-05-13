@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, model_validator
 
 from veriflow.configuration.base import (
     BaseCategoricalScoreConfig,
@@ -106,6 +106,17 @@ class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsForecast):
 
     score_adapter: Literal[ScoreKind.continuous_scores]
     scores: list[SupportedContinuousScore]
+
+    @model_validator(mode="after")
+    def validate_nse(self) -> "ContinuousScoresConfig":
+        """Validate that if nse in scores, reduce_dims is not empty."""
+        if SupportedContinuousScore.nse in self.scores and len(self.reduce_dims) == 0:
+            msg = (
+                "NSE: need at least one dimension to be reduced. "
+                "Please add at least one dimension to reduce_dims."
+            )
+            raise ValueError(msg)
+        return self
 
 
 class ThresholdEvent(BaseEvent):
