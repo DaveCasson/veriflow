@@ -111,6 +111,8 @@ def test_single_continuous_scores(
     assert isinstance(result, xr.Dataset)  # type:ignore[misc]
     assert "mae" in result
     assert "rmse" in result
+    assert "nse" in result
+    assert "kge" in result
 
 
 def test_categorical_scores(

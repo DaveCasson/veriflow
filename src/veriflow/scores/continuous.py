@@ -17,6 +17,7 @@ from scores.continuous import (  # type:ignore[import-untyped]
     mae,
     mean_error,
     mse,
+    nse,
     rmse,
 )
 
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 score_funcs: dict[SupportedContinuousScore, Callable] = {
     SupportedContinuousScore.additive_bias: additive_bias,  # type:ignore[misc]
     SupportedContinuousScore.kge: kge,  # type:ignore[misc]
+    SupportedContinuousScore.nse: nse,  # type:ignore[misc]
     SupportedContinuousScore.mae: mae,  # type:ignore[misc]
     SupportedContinuousScore.mse: mse,  # type:ignore[misc]
     SupportedContinuousScore.rmse: rmse,  # type:ignore[misc]

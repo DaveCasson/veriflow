@@ -779,7 +779,8 @@ def score_config_continuous(
     return ContinuousScoresConfig(
         score_adapter=ScoreKind.continuous_scores,
         general=fews_general_info_config_single.model_dump(),
-        scores=["mae", "rmse"],
+        scores=["mae", "rmse", "nse", "kge"],
+        reduce_dims=[StandardDim.forecast_reference_time],
     )
 
 
