@@ -71,12 +71,12 @@
       "description": "Config to compute categorical scores, based on an event definition.",
       "properties": {
         "reduce_dims": {
-          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
+          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'lead_time'.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
-              "forecast_period",
+              "lead_time",
               "time"
             ],
             "type": "string"
@@ -134,12 +134,12 @@
       "description": "Configure multiple continuous scores.",
       "properties": {
         "reduce_dims": {
-          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
+          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'lead_time'.",
           "items": {
             "enum": [
               "station",
               "forecast_reference_time",
-              "forecast_period",
+              "lead_time",
               "time"
             ],
             "type": "string"
@@ -185,7 +185,7 @@
             "enum": [
               "station",
               "forecast_reference_time",
-              "forecast_period"
+              "lead_time"
             ],
             "type": "string"
           },
@@ -232,7 +232,7 @@
             "enum": [
               "station",
               "forecast_reference_time",
-              "forecast_period"
+              "lead_time"
             ],
             "type": "string"
           },
@@ -443,7 +443,7 @@
         "external_historical",
         "simulated_historical",
         "simulated_forecast_per_forecast_reference_time",
-        "simulated_forecast_per_forecast_period"
+        "simulated_forecast_per_lead_time"
       ],
       "title": "FewsNetCDFKind",
       "type": "string"
@@ -578,7 +578,7 @@
         "forecast_retrieval_method": {
           "$ref": "#/$defs/ForecastRetrievalMethod",
           "default": "retrieve_all_forecast_data",
-          "description": "Since Delft-FEWS 2025.01, the Delft-FEWS Webservice canretrieve forecasts for specific forecast periods (lead times). This avoid having to retrieve all forecast data outside of the configured forecast periods (lead times) for the verification pipeline. If not provided, the method will be automatically determined based on the configured webservice version."
+          "description": "Since Delft-FEWS 2025.01, the Delft-FEWS Webservice canretrieve forecasts for specific lead times (lead times). This avoid having to retrieve all forecast data outside of the configured lead times (lead times) for the verification pipeline. If not provided, the method will be automatically determined based on the configured webservice version."
         },
         "max_workers_in_thread_pool": {
           "default": 2,
@@ -597,34 +597,6 @@
         "webservice_version"
       ],
       "title": "FewsWebserviceConfig",
-      "type": "object"
-    },
-    "ForecastPeriods": {
-      "description": "A forecast periods config element.",
-      "properties": {
-        "unit": {
-          "$ref": "#/$defs/TimeUnits"
-        },
-        "values": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "integer"
-              },
-              "type": "array"
-            },
-            {
-              "$ref": "#/$defs/Range"
-            }
-          ],
-          "title": "Values"
-        }
-      },
-      "required": [
-        "unit",
-        "values"
-      ],
-      "title": "ForecastPeriods",
       "type": "object"
     },
     "ForecastRetrievalMethod": {
@@ -651,10 +623,10 @@
           "title": "Verification Pairs",
           "type": "array"
         },
-        "forecast_periods": {
+        "lead_times": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ForecastPeriods"
+              "$ref": "#/$defs/LeadTimes"
             },
             {
               "type": "null"
@@ -719,6 +691,34 @@
         }
       },
       "title": "IdMappingConfig",
+      "type": "object"
+    },
+    "LeadTimes": {
+      "description": "A lead times config element.",
+      "properties": {
+        "unit": {
+          "$ref": "#/$defs/TimeUnits"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "$ref": "#/$defs/Range"
+            }
+          ],
+          "title": "Values"
+        }
+      },
+      "required": [
+        "unit",
+        "values"
+      ],
+      "title": "LeadTimes",
       "type": "object"
     },
     "NetCDFConfig": {
@@ -793,7 +793,7 @@
             "enum": [
               "station",
               "forecast_reference_time",
-              "forecast_period"
+              "lead_time"
             ],
             "type": "string"
           },

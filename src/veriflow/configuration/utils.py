@@ -56,8 +56,8 @@ class Range(BaseModel):
         return list(range(self.start, self.end + 1, self.step))
 
 
-class ForecastPeriods(BaseModel):
-    """A forecast periods config element."""
+class LeadTimes(BaseModel):
+    """A lead times config element."""
 
     unit: TimeUnits
     values: Annotated[
@@ -89,12 +89,12 @@ class ForecastPeriods(BaseModel):
 
     @property
     def max(self) -> timedelta:
-        """Get the maximum forecast period."""
+        """Get the maximum lead time."""
         return max(self.stdlib_timedelta)
 
     @property
     def min(self) -> timedelta:
-        """Get the minimum forecast period."""
+        """Get the minimum lead time."""
         return min(self.stdlib_timedelta)
 
 

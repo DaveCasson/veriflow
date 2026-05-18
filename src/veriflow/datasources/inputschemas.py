@@ -70,7 +70,7 @@ class ForecastTimeCoord(BaseModel):
     dims: Annotated[
         tuple[str, ...],
         AfterValidator(
-            check_dims({StandardDim.forecast_reference_time, StandardDim.forecast_period}),
+            check_dims({StandardDim.forecast_reference_time, StandardDim.lead_time}),
         ),
     ]
     dtype: AllowedDTypeDateTime
@@ -93,8 +93,8 @@ class XYZCoord(BaseModel):
     dtype: AllowedDTypeFloat
 
 
-class ForecastPeriodCoord(BaseModel):
-    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.forecast_period}))]
+class LeadTimeCoord(BaseModel):
+    dims: Annotated[tuple[str, ...], AfterValidator(check_dims({StandardDim.lead_time}))]
     dtype: AllowedDTypeTimeDelta
 
 
@@ -123,20 +123,20 @@ class BaseHistoricalCoords(BaseCoords):
 
 class SimulatedForecastSingleCoords(BaseCoords):
     forecast_reference_time: ForecastReferenceTimeCoord
-    forecast_period: ForecastPeriodCoord
+    lead_time: LeadTimeCoord
     time: ForecastTimeCoord
 
 
 class SimulatedForecastEnsembleCoords(BaseCoords):
     forecast_reference_time: ForecastReferenceTimeCoord
-    forecast_period: ForecastPeriodCoord
+    lead_time: LeadTimeCoord
     realization: RealizationCoord
     time: ForecastTimeCoord
 
 
 class SimulatedForecastProbabilisticCoords(BaseCoords):
     forecast_reference_time: ForecastReferenceTimeCoord
-    forecast_period: ForecastPeriodCoord
+    lead_time: LeadTimeCoord
     threshold: ThresholdCoord
     time: ForecastTimeCoord
 
@@ -198,7 +198,7 @@ class SimulatedForecastSingleDataVar(BaseModel):
                 {
                     StandardDim.station,
                     StandardDim.forecast_reference_time,
-                    StandardDim.forecast_period,
+                    StandardDim.lead_time,
                 },
             ),
         ),
@@ -214,7 +214,7 @@ class SimulatedForecastEnsembleDataVar(BaseModel):
                 {
                     StandardDim.station,
                     StandardDim.forecast_reference_time,
-                    StandardDim.forecast_period,
+                    StandardDim.lead_time,
                     StandardDim.realization,
                 },
             ),
@@ -231,7 +231,7 @@ class SimulatedForecastProbabilisticDataVar(BaseModel):
                 {
                     StandardDim.station,
                     StandardDim.forecast_reference_time,
-                    StandardDim.forecast_period,
+                    StandardDim.lead_time,
                     StandardDim.threshold,
                 },
             ),

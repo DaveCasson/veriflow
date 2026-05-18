@@ -13,7 +13,7 @@ def test_init_input_dataset_simulated_forecast_ensemble(
     xarray_observed_historical: xr.Dataset,
     xarray_simulated_forecast_ensemble: xr.Dataset,
 ) -> None:
-    """Test the input_dataset initializes successfully with forecast period (fp) input."""
+    """Test the input_dataset initializes successfully with lead time (fp) input."""
     _ = InputDataset(
         data=[xarray_observed_historical, xarray_simulated_forecast_ensemble],
     )
@@ -32,7 +32,7 @@ def test_input_dataset_obs_mapper(
     obs_reprojected = InputDataset.map_historical_into_forecast_space(obs, sim)
 
     # Get a subset of obs and sim
-    sim_subset = obs_reprojected.isel(station=0, forecast_period=0)
+    sim_subset = obs_reprojected.isel(station=0, lead_time=0)
     obs_subset = obs.isel(station=0).sel(time=sim_subset.forecast_reference_time)
 
     # We expect all values at forecast_reference_time=0 to match the observed values
@@ -43,7 +43,7 @@ def test_init_input_dataset_simulated_forecast_single(
     xarray_observed_historical: xr.Dataset,
     xarray_simulated_forecast_single: xr.Dataset,
 ) -> None:
-    """Test the input_dataset initializes successfully with forecast period (fp) input."""
+    """Test the input_dataset initializes successfully with lead time (fp) input."""
     _ = InputDataset(
         data=[xarray_observed_historical, xarray_simulated_forecast_single],
     )

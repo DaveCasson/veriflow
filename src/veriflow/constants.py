@@ -143,7 +143,7 @@ class StandardDim(StrEnum):
     station = "station"
     realization = "realization"
     forecast_reference_time = "forecast_reference_time"
-    forecast_period = "forecast_period"
+    lead_time = "lead_time"
     threshold = "threshold"
 
 
@@ -252,11 +252,14 @@ class StandardCoord:
             ("long_name", "forecast_reference_time"),
         ),
     )
-    forecast_period = CoordinateProperties(
-        StandardDim.forecast_period,
+    lead_time = CoordinateProperties(
+        StandardDim.lead_time,
         (
             ("standard_name", "forecast_period"),
-            ("long_name", "forecast_period"),
+            (
+                "long_name",
+                "forecast_period, the time difference between forecast_reference_time and time",
+            ),
         ),
     )
 

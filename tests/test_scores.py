@@ -71,7 +71,7 @@ def test_probabilistic_crps_cdf(
 
     # Synthetic obs
     mean_sim = sim.threshold.mean()  # type:ignore[misc]
-    obs_dummy = xr.full_like(sim.mean(["threshold", "forecast_period"]), mean_sim)  # type:ignore[misc]
+    obs_dummy = xr.full_like(sim.mean(["threshold", "lead_time"]), mean_sim)  # type:ignore[misc]
     obs_dummy.name = "source_observation"
     obs_dummy.attrs.update({"data_type": DataType.observed_historical})  # type:ignore[misc]
 

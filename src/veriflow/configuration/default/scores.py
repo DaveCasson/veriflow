@@ -35,7 +35,7 @@ class ReduceDimsForecast(BaseModel):
             Literal[
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
             ]
         ],
         Field(default_factory=list),
@@ -49,7 +49,7 @@ class ReduceDimsForecast(BaseModel):
             for k in [
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
             ]
             if k not in self.reduce_dims
         ]
@@ -63,7 +63,7 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
             Literal[
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
                 StandardDim.time,
             ]
         ],
@@ -72,7 +72,7 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
             description="The dimensions over which to reduce. Can be either forecast or historical "
             "dimensions, but not both. For historical verification, the reduce_dims can only "
             "contain 'station' and 'time'. For forecast verification, the reduce_dims can only "
-            "contain 'station', 'forecast_reference_time' and 'forecast_period'.",
+            "contain 'station', 'forecast_reference_time' and 'lead_time'.",
         ),
     ]
 
@@ -81,7 +81,7 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
         """The dimensions to preserve."""
         if (
             StandardDim.forecast_reference_time in self.reduce_dims
-            or StandardDim.forecast_period in self.reduce_dims
+            or StandardDim.lead_time in self.reduce_dims
         ):
             return [
                 k
@@ -89,7 +89,7 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
                     StandardDim.station,
                     StandardDim.time,
                     StandardDim.forecast_reference_time,
-                    StandardDim.forecast_period,
+                    StandardDim.lead_time,
                 ]
                 if k not in self.reduce_dims
             ]
@@ -118,12 +118,12 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
         """Validate that reduce_dims only contains either forecast or historical dimensions."""
         if (
             StandardDim.forecast_reference_time in self.reduce_dims
-            or StandardDim.forecast_period in self.reduce_dims
+            or StandardDim.lead_time in self.reduce_dims
         ) and StandardDim.time in self.reduce_dims:
             msg = (
                 "reduce_dims cannot contain both forecast and historical dimensions. "
                 "Please choose either 'time' for historical verification or "
-                "'forecast_reference_time' and 'forecast_period' for forecast verification.",
+                "'forecast_reference_time' and 'lead_time' for forecast verification.",
             )
             raise ValueError(msg)
         return self

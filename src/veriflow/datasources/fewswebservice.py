@@ -199,10 +199,10 @@ class FewsWebservice(BaseDatasource):
 
                 return self
 
-        # Validate that forecast_periods is not None, since it's required for fetching forecasts
-        if self.config.forecast_periods is None:
+        # Validate that lead_times is not None, since it's required for fetching forecasts
+        if self.config.lead_times is None:
             msg = (
-                f"For the datatype {self.config.data_type} the forecast period "
+                f"For the datatype {self.config.data_type} the lead time "
                 f"field must be provided in the config, and cannot be None."
             )
             raise ValueError(msg)
@@ -370,7 +370,7 @@ class FewsWebservice(BaseDatasource):
         ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmpdir_path = Path(tmpdir)
-                for fp in self.config.forecast_periods.stdlib_timedelta:
+                for fp in self.config.lead_times.stdlib_timedelta:
                     response = self.client.get_timeseries(
                         location_ids=self.config.location_ids,
                         parameter_ids=self.config.parameter_ids,
@@ -385,7 +385,7 @@ class FewsWebservice(BaseDatasource):
                         else None,
                     )
 
-                    # Write NetCDF response to disk, prefix with the forecast period
+                    # Write NetCDF response to disk, prefix with the lead time
                     #   (lead time) in milliseconds.
                     unique_prefix = str(int(fp.total_seconds() * 1000))
                     self.write_netcdf_response_to_dir(
@@ -402,7 +402,7 @@ class FewsWebservice(BaseDatasource):
                         directory=tmpdir,
                         filename_glob="*.nc",
                         general=self.config.general,
-                        netcdf_kind=FewsNetCDFKind.simulated_forecast_per_forecast_period,
+                        netcdf_kind=FewsNetCDFKind.simulated_forecast_per_lead_time,
                         id_mapping=self.config.id_mapping,
                         source=self.config.source,
                     ),

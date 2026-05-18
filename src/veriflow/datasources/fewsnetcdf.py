@@ -46,12 +46,12 @@ class Preprocessor:
         fews_netcdf_kind: FewsNetCDFKind,
         filter_variables: list[str] | None = None,
         filter_stations: list[str] | None = None,
-        filter_forecast_periods: list[np.timedelta64] | None = None,
+        filter_lead_times: list[np.timedelta64] | None = None,
     ) -> None:
         self.fews_netcdf_kind = fews_netcdf_kind
         self.variables = filter_variables
         self.stations = filter_stations
-        self.forecast_periods = filter_forecast_periods
+        self.lead_times = filter_lead_times
 
     @staticmethod
     def convert_byte_string_coord_to_utf8(
@@ -120,23 +120,23 @@ class Preprocessor:
         dataset: xr.Dataset,
     ) -> xr.Dataset:
         """Transform the FEWS NetCDF time dims/coords to internal."""
-        forecast_periods = (
+        lead_times = (
             (dataset[StandardDim.time] - dataset[StandardDim.forecast_reference_time])
             # type:ignore[misc]
             .to_numpy()
             .ravel()
         )
         ds = dataset.assign_coords(
-            {StandardDim.forecast_period: (StandardDim.time, forecast_periods)},  # type:ignore[misc]
+            {StandardDim.lead_time: (StandardDim.time, lead_times)},  # type:ignore[misc]
         )
 
-        ds = ds.swap_dims({StandardDim.time: StandardDim.forecast_period}).drop_vars(  # type:ignore[misc]
+        ds = ds.swap_dims({StandardDim.time: StandardDim.lead_time}).drop_vars(  # type:ignore[misc]
             StandardDim.time,
         )
 
-        # Re-compute time as 2d matrix along forecast_period and forecast_reference_time
+        # Re-compute time as 2d matrix along lead_time and forecast_reference_time
         time_index_2d = (
-            (ds[StandardDim.forecast_reference_time] + ds[StandardDim.forecast_period])
+            (ds[StandardDim.forecast_reference_time] + ds[StandardDim.lead_time])
             # type:ignore[misc]
             .to_numpy()
             .swapaxes(0, 1)
@@ -146,7 +146,7 @@ class Preprocessor:
         ds = ds.assign_coords(
             {
                 StandardDim.time: (  # type:ignore[misc]
-                    (StandardDim.forecast_period, StandardDim.forecast_reference_time),
+                    (StandardDim.lead_time, StandardDim.forecast_reference_time),
                     time_index_2d,  # type:ignore[misc]
                 ),
             },
@@ -201,14 +201,14 @@ class Preprocessor:
         if self.stations is not None:
             dataset = self.filter_stations(dataset, self.stations)
 
-        # Filter forecast periods for simulations
+        # Filter lead times for simulations
         if (
-            self.forecast_periods is not None
+            self.lead_times is not None
             and self.fews_netcdf_kind
             == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time
         ):
-            # Filter the relevant forecast_periods to maximize memory efficiency
-            selector = {StandardDim.forecast_period: self.forecast_periods}
+            # Filter the relevant lead_times to maximize memory efficiency
+            selector = {StandardDim.lead_time: self.lead_times}
             dataset = dataset.sel(selector)
 
         return dataset
@@ -344,34 +344,34 @@ def quantiles_to_cdf_data_array(
     return result
 
 
-def parse_forecast_period_netcdf_files(
+def parse_lead_time_netcdf_files(
     paths: Iterator[Path],
 ) -> xr.Dataset:
     """Parse NetCDF responses from get timeseries with leadTimes parameter."""
 
     def preprocess(dataset: xr.Dataset) -> xr.Dataset:
         """
-        Preprocess individual files, set forecast_period based on filename.
+        Preprocess individual files, set lead_time based on filename.
 
-        When requesting data for a specific forecast period via the FEWS-Webservice,
-        the actual forecast period used in the request is not available in the
-        response. As a workaround, we prefix the filename with the forecast period
+        When requesting data for a specific lead time via the FEWS-Webservice,
+        the actual lead time used in the request is not available in the
+        response. As a workaround, we prefix the filename with the lead time
         in milliseconds, access it via the dataset encoding and set it as a dim/coord
         on the dataset.
         """
         filename = Path(dataset.encoding["source"]).name  # type:ignore[misc]
 
-        forecast_period_millis = filename.split("_")[0]
-        if not forecast_period_millis.isalnum():
-            msg = "Filename prefix is expected to be a numeric representing the forecast period"
-            "(lead time) in milliseconds. The provided prefix '{forecast_period_millis}' is is not"
-            "numeric and cannot be converted to a valid forecast period."
+        lead_time_millis = filename.split("_")[0]
+        if not lead_time_millis.isalnum():
+            msg = "Filename prefix is expected to be a numeric representing the lead time"
+            "(lead time) in milliseconds. The provided prefix '{lead_time_millis}' is is not"
+            "numeric and cannot be converted to a valid lead time."
             raise ValueError(msg)
 
-        forecast_period = np.timedelta64(int(forecast_period_millis), "ms").astype(
+        lead_time = np.timedelta64(int(lead_time_millis), "ms").astype(
             "timedelta64[ns]",
         )
-        forecast_reference_times = dataset[StandardDim.time] - forecast_period  # type:ignore[misc]
+        forecast_reference_times = dataset[StandardDim.time] - lead_time  # type:ignore[misc]
 
         # Set the station_name as coord instead of variable
         if FewsNetcdfCoord.station_names in dataset:
@@ -393,13 +393,13 @@ def parse_forecast_period_netcdf_files(
         dataset = dataset.assign_coords(
             {FewsNetcdfDims.stations: dataset[FewsNetcdfCoord.station_id].to_numpy()},  # type:ignore[misc]
         )
-        # Assign forecast_period as a dim/coord
-        dataset = dataset.expand_dims(StandardDim.forecast_period)
+        # Assign lead_time as a dim/coord
+        dataset = dataset.expand_dims(StandardDim.lead_time)
         return dataset.assign_coords(
             {
-                StandardCoord.forecast_period.name: (
-                    StandardDim.forecast_period,
-                    [forecast_period],  # type:ignore[misc]
+                StandardCoord.lead_time.name: (
+                    StandardDim.lead_time,
+                    [lead_time],  # type:ignore[misc]
                 ),
             },
         )
@@ -415,7 +415,7 @@ def parse_forecast_period_netcdf_files(
     )
 
     dataset = dataset.sortby(StandardDim.forecast_reference_time)
-    dataset = dataset.sortby(StandardDim.forecast_period)
+    dataset = dataset.sortby(StandardDim.lead_time)
 
     # Decode byte-string coords
     dataset = Preprocessor.convert_byte_string_coord_to_utf8(
@@ -432,10 +432,9 @@ def parse_forecast_period_netcdf_files(
     return dataset.assign_coords(
         {  # type:ignore[misc]
             StandardDim.time: (  # type:ignore[misc]
-                (StandardDim.forecast_reference_time, StandardDim.forecast_period),
+                (StandardDim.forecast_reference_time, StandardDim.lead_time),
                 (
-                    dataset[StandardDim.forecast_reference_time]
-                    + dataset[StandardDim.forecast_period]
+                    dataset[StandardDim.forecast_reference_time] + dataset[StandardDim.lead_time]
                 ).to_numpy(),  # type:ignore[misc]
             ),
         },
@@ -484,7 +483,7 @@ class FewsNetCDF(BaseDatasource):
             transpose_dims = (
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
                 ...,
             )
         else:
@@ -504,8 +503,8 @@ class FewsNetCDF(BaseDatasource):
         preprocessor = Preprocessor(
             fews_netcdf_kind=self.config.netcdf_kind,
             filter_stations=self.config.station_ids,
-            filter_forecast_periods=self.config.forecast_periods.timedelta64
-            if self.config.forecast_periods is not None
+            filter_lead_times=self.config.lead_times.timedelta64
+            if self.config.lead_times is not None
             else None,
         )
 
@@ -525,9 +524,9 @@ class FewsNetCDF(BaseDatasource):
                 compat="override",
             )
 
-        # Simulations - per forecast period
-        if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_period:
-            dataset = parse_forecast_period_netcdf_files(
+        # Simulations - per lead time
+        if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_lead_time:
+            dataset = parse_lead_time_netcdf_files(
                 self.config.paths,
             )
 

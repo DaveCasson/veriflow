@@ -12,7 +12,7 @@ from veriflow.base import Base
 from veriflow.configuration.base import (
     BaseDatasourceConfig,
 )
-from veriflow.configuration.utils import ForecastPeriods, TimePeriod
+from veriflow.configuration.utils import LeadTimes, TimePeriod
 from veriflow.constants import FORECAST_DATA_TYPES, HISTORICAL_DATA_TYPES, DataType, StandardDim
 
 __all__ = [
@@ -82,34 +82,31 @@ class BaseDatasource(Base):
         dataset.attrs["source"] = expected_source  # type:ignore[misc]
 
     @staticmethod
-    def _validate_forecast_periods(
+    def _validate_lead_times(
         dataset: xr.Dataset,
-        forecast_periods: ForecastPeriods | None,
+        lead_times: LeadTimes | None,
     ) -> None:
-        """Check that forecast periods are provided for forecast data types."""
-        if not forecast_periods and dataset.attrs["data_type"] in FORECAST_DATA_TYPES:  # type:ignore[misc]
-            msg = (
-                "Forecast periods must be provided in the config for forecast data types, "
-                "but got None."
-            )
+        """Check that lead times are provided for forecast data types."""
+        if not lead_times and dataset.attrs["data_type"] in FORECAST_DATA_TYPES:  # type:ignore[misc]
+            msg = "Lead times must be provided in the config for forecast data types, but got None."
             raise ValueError(msg)
 
     @staticmethod
-    def _filter_forecast_periods(
+    def _filter_lead_times(
         dataset: xr.Dataset,
-        forecast_periods: ForecastPeriods | None,
+        lead_times: LeadTimes | None,
     ) -> xr.Dataset:
-        """Filter forecast dataset on forecast periods."""
-        if dataset.attrs["data_type"] in FORECAST_DATA_TYPES and forecast_periods is not None:  # type:ignore[misc]
-            # Select only relevant forecast periods for simulations
+        """Filter forecast dataset on lead times."""
+        if dataset.attrs["data_type"] in FORECAST_DATA_TYPES and lead_times is not None:  # type:ignore[misc]
+            # Select only relevant lead times for simulations
             dataset = dataset.sel(
-                forecast_period=forecast_periods.timedelta64,
+                lead_time=lead_times.timedelta64,
             )
         return dataset
 
     @staticmethod
     def _filter_times(dataset: xr.Dataset, verification_period_on_time: TimePeriod) -> xr.Dataset:
-        """Filter the times outside the verification period and forecast periods."""
+        """Filter the times outside the verification period and lead times."""
         data_type = dataset.attrs["data_type"]  # type:ignore[misc]
 
         if data_type in FORECAST_DATA_TYPES:  # type:ignore[misc]
@@ -120,7 +117,7 @@ class BaseDatasource(Base):
             )
             # Drop NaN values along frt and fp dims, if all values are NaN
             return filtered.dropna(dim=StandardDim.forecast_reference_time, how="all").dropna(
-                dim=StandardDim.forecast_period,
+                dim=StandardDim.lead_time,
                 how="all",
             )
         if data_type in HISTORICAL_DATA_TYPES:  # type:ignore[misc]
@@ -165,14 +162,14 @@ class BaseDatasource(Base):
         if self.config.id_mapping is not None:
             dataset = self.config.id_mapping.rename_dataset(dataset)
 
-        # Check that forecast periods are provided for forecast data types, if not already checked
+        # Check that lead times are provided for forecast data types, if not already checked
         #   in validation of config
-        self._validate_forecast_periods(dataset, self.config.forecast_periods)
+        self._validate_lead_times(dataset, self.config.lead_times)
 
-        # Filter forecast_periods
-        dataset = self._filter_forecast_periods(
+        # Filter lead_times
+        dataset = self._filter_lead_times(
             dataset,
-            self.config.forecast_periods,
+            self.config.lead_times,
         )
 
         # Filter times outside verification period
