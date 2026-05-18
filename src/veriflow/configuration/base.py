@@ -24,7 +24,7 @@ from pydantic.json_schema import SkipJsonSchema
 
 from veriflow.constants import DataType, StandardDim
 
-from .utils import ForecastPeriods, Source, TimePeriod, VerificationPair, VerificationPeriod
+from .utils import LeadTimes, Source, TimePeriod, VerificationPair, VerificationPeriod
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -46,11 +46,11 @@ class GeneralInfoConfig(BaseModel):
             "source Observed.",
         ),
     ]
-    forecast_periods: Annotated[
-        ForecastPeriods | None,
+    lead_times: Annotated[
+        LeadTimes | None,
         Field(
-            "A set of forecast periods for which to evaluate of the verification scores. "
-            "A forecast period is the timedelta between the forecast reference time of a forecast "
+            "A set of lead times for which to evaluate of the verification scores. "
+            "A lead time is the timedelta between the forecast reference time of a forecast "
             "(t0, analysis_time, initialization time) and the valid time (time, observed time) "
             "and is also known as: lead time or forecast horizon)",
         ),
@@ -80,28 +80,28 @@ class GeneralInfoConfig(BaseModel):
         """The verification period along the time dimension."""
         if (
             self.verification_period.dimension == StandardDim.forecast_reference_time
-            and self.forecast_periods is not None
+            and self.lead_times is not None
         ):
-            start = self.verification_period.start + self.forecast_periods.min
-            end = self.verification_period.end + self.forecast_periods.max
+            start = self.verification_period.start + self.lead_times.min
+            end = self.verification_period.end + self.lead_times.max
             return TimePeriod(start=start, end=end)
         return self.verification_period
 
     @property
     def verification_period_on_frt(self) -> TimePeriod:
         """The verification period along the forecast reference time dimension."""
-        if self.verification_period.dimension == "time" and self.forecast_periods is not None:
-            start = self.verification_period.start - self.forecast_periods.max
-            end = self.verification_period.end - self.forecast_periods.min
+        if self.verification_period.dimension == "time" and self.lead_times is not None:
+            start = self.verification_period.start - self.lead_times.max
+            end = self.verification_period.end - self.lead_times.min
             return TimePeriod(start=start, end=end)
         return self.verification_period
 
     @model_validator(mode="after")
-    def verification_period_and_forecast_periods_consistent(self) -> Self:
-        """Check that the verification period and forecast periods are consistent."""
-        if self.forecast_periods is None and self.verification_period.dimension != StandardDim.time:
+    def verification_period_and_lead_times_consistent(self) -> Self:
+        """Check that the verification period and lead times are consistent."""
+        if self.lead_times is None and self.verification_period.dimension != StandardDim.time:
             msg = (
-                "When no forecast periods are provided, the verification period should be defined "
+                "When no lead times are provided, the verification period should be defined "
                 "along the time dimension (verification_period.dimension should be 'time')."
             )
             raise ValueError(msg)
@@ -212,8 +212,8 @@ class BaseDatasourceConfig(BaseConfig):
     id_mapping: SkipJsonSchema[IdMappingConfig] | None = None
 
     @property
-    def forecast_periods(self) -> ForecastPeriods | None:
-        return self.general.forecast_periods
+    def lead_times(self) -> LeadTimes | None:
+        return self.general.lead_times
 
     @property
     def verification_period(self) -> TimePeriod:
@@ -287,8 +287,8 @@ class BaseScoreConfig(BaseConfig):
         ]
 
     @property
-    def forecast_periods(self) -> ForecastPeriods | None:
-        return self.general.forecast_periods
+    def lead_times(self) -> LeadTimes | None:
+        return self.general.lead_times
 
     @model_validator(mode="after")
     def verification_pair_ids_valid(self) -> Self:

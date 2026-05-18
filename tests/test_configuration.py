@@ -19,7 +19,7 @@ from veriflow.configuration.default.scores import (
 )
 from veriflow.configuration.utils import (
     FewsWebserviceAuthConfig,
-    ForecastPeriods,
+    LeadTimes,
     Range,
     TimeUnits,
 )
@@ -123,10 +123,10 @@ def test_schema_dump_with_user_models(tmp_path: Path) -> None:
         )
 
 
-def test_forecast_period_config() -> None:
-    """Check forecast periods config identical when using list or range."""
-    list_instance = ForecastPeriods(unit=TimeUnits.hour, values=[1, 2, 3])
-    range_instance = ForecastPeriods(
+def test_lead_time_config() -> None:
+    """Check lead times config identical when using list or range."""
+    list_instance = LeadTimes(unit=TimeUnits.hour, values=[1, 2, 3])
+    range_instance = LeadTimes(
         unit=TimeUnits.hour,
         values=Range(start=1, end=3, step=1).to_list(),
     )
@@ -181,7 +181,7 @@ def test_reduce_dims_forecast_validation() -> None:
             Literal[
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
                 StandardDim.time,
             ]
         ]
@@ -189,8 +189,8 @@ def test_reduce_dims_forecast_validation() -> None:
         [StandardDim.station, StandardDim.time],
         [StandardDim.station],
         [StandardDim.station, StandardDim.forecast_reference_time],
-        [StandardDim.station, StandardDim.forecast_period],
-        [StandardDim.station, StandardDim.forecast_reference_time, StandardDim.forecast_period],
+        [StandardDim.station, StandardDim.lead_time],
+        [StandardDim.station, StandardDim.forecast_reference_time, StandardDim.lead_time],
     ]
 
     for reduce_dims in valid_cases:
@@ -202,7 +202,7 @@ def test_reduce_dims_forecast_validation() -> None:
         Literal[
             StandardDim.station,
             StandardDim.forecast_reference_time,
-            StandardDim.forecast_period,
+            StandardDim.lead_time,
             StandardDim.time,
         ]
     ] = [

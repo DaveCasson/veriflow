@@ -30,7 +30,7 @@ class FewsNetCDFKind(StrEnum):
     simulated_forecast_per_forecast_reference_time = (
         "simulated_forecast_per_forecast_reference_time"
     )
-    simulated_forecast_per_forecast_period = "simulated_forecast_per_forecast_period"
+    simulated_forecast_per_lead_time = "simulated_forecast_per_lead_time"
 
 
 class ForecastRetrievalMethod(StrEnum):
@@ -85,8 +85,8 @@ class FewsWebserviceConfig(BaseDatasourceConfig):
         ForecastRetrievalMethod,
         Field(
             description="Since Delft-FEWS 2025.01, the Delft-FEWS Webservice can"
-            "retrieve forecasts for specific forecast periods (lead times). This avoid having "
-            "to retrieve all forecast data outside of the configured forecast periods "
+            "retrieve forecasts for specific lead times (lead times). This avoid having "
+            "to retrieve all forecast data outside of the configured lead times "
             "(lead times) for the verification pipeline. If not provided, the method will be "
             "automatically determined based on the configured webservice version.",
         ),

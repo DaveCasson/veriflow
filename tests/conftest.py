@@ -36,7 +36,7 @@ from veriflow.configuration.default.scores import (
     ThresholdEvent,
 )
 from veriflow.configuration.utils import (
-    ForecastPeriods,
+    LeadTimes,
     TimeUnits,
     VerificationPair,
     VerificationPeriod,
@@ -62,7 +62,7 @@ TESTS_DATA_DIR = Path(__file__).parent / "data"
 rng = np.random.default_rng(seed=42)
 
 # Settings for dummy xarray data.
-#   fp  = forecast period
+#   fp  = lead time
 #   frt = forecast reference time
 day_multiplier = 10  # Easily scale the verification period
 dtype = "float32"
@@ -93,8 +93,8 @@ forecast_reference_times = pd.date_range(
 vp_start = pd.to_datetime(frt_start)
 vp_end = pd.to_datetime(frt_start) + pd.to_timedelta(time_n, unit=time_step)
 
-forecast_periods = pd.timedelta_range(0, periods=fp_n, freq=fp_step)
-forecast_times = forecast_reference_times.to_numpy()[:, None] + forecast_periods.to_numpy()[None, :]
+lead_times = pd.timedelta_range(0, periods=fp_n, freq=fp_step)
+forecast_times = forecast_reference_times.to_numpy()[:, None] + lead_times.to_numpy()[None, :]
 stations = [f"station_{n}" for n in range(station_n)]
 x = rng.uniform(0, 100, size=station_n)
 y = rng.uniform(0, 100, size=station_n)
@@ -197,14 +197,14 @@ def xarray_observed_historical_datasource(
 def xarray_simulated_forecast_ensemble() -> xr.Dataset:
     """Return example simulations compatible with the internal datamodel.
 
-    Uses forecast_period as dimension and coordinates.
+    Uses lead_time as dimension and coordinates.
     """
     coords = {
         StandardCoord.forecast_reference_time.name: forecast_reference_times,
-        StandardCoord.forecast_period.name: forecast_periods,
+        StandardCoord.lead_time.name: lead_times,
         StandardCoord.realization.name: realization,
         StandardCoord.time.name: (
-            (StandardDim.forecast_reference_time, StandardDim.forecast_period),
+            (StandardDim.forecast_reference_time, StandardDim.lead_time),
             forecast_times,
         ),
         StandardCoord.station.name: (StandardDim.station, stations),
@@ -222,7 +222,7 @@ def xarray_simulated_forecast_ensemble() -> xr.Dataset:
             dims=[
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
                 StandardDim.realization,
             ],
             attrs={"units": f"dummy_unit_{i}"},
@@ -241,13 +241,13 @@ def xarray_simulated_forecast_ensemble() -> xr.Dataset:
 def xarray_simulated_forecast_single() -> xr.Dataset:
     """Return example simulations compatible with the internal datamodel.
 
-    Uses forecast_period as dimension and coordinates.
+    Uses lead_time as dimension and coordinates.
     """
     coords = {
         StandardCoord.forecast_reference_time.name: forecast_reference_times,
-        StandardCoord.forecast_period.name: forecast_periods,
+        StandardCoord.lead_time.name: lead_times,
         StandardCoord.time.name: (
-            (StandardDim.forecast_reference_time, StandardDim.forecast_period),
+            (StandardDim.forecast_reference_time, StandardDim.lead_time),
             forecast_times,
         ),
         StandardCoord.station.name: (StandardDim.station, stations),
@@ -265,7 +265,7 @@ def xarray_simulated_forecast_single() -> xr.Dataset:
             dims=[
                 StandardDim.station,
                 StandardDim.forecast_reference_time,
-                StandardDim.forecast_period,
+                StandardDim.lead_time,
             ],
             attrs={"units": f"dummy_unit_{i}"},
         )
@@ -332,7 +332,7 @@ def fews_general_info_config_single(cache_dir: Path) -> GeneralInfoConfig:
             start=datetime(2025, 9, 1, tzinfo=timezone.utc),
             end=datetime(2025, 9, 4, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
+        lead_times=LeadTimes(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -353,7 +353,7 @@ def xarray_general_info_config(cache_dir: Path) -> GeneralInfoConfig:
             start=vp_start,
             end=vp_end,
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
+        lead_times=LeadTimes(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -395,7 +395,7 @@ def fews_general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
             start=datetime(2024, 11, 10, tzinfo=timezone.utc),
             end=datetime(2024, 11, 12, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
+        lead_times=LeadTimes(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -416,7 +416,7 @@ def fews_general_info_config_probabilistic(cache_dir: Path) -> GeneralInfoConfig
             start=datetime(2025, 6, 27, tzinfo=timezone.utc),
             end=datetime(2025, 6, 28, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2, 3, 4]),
+        lead_times=LeadTimes(unit=TimeUnits.day, values=[1, 2, 3, 4]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",
@@ -675,9 +675,9 @@ def fews_netcdf_simulated_forecast_ensemble_fp(
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
     instance = deepcopy(fews_netcdf_simulated_forecast_ensemble_frt)
-    instance.config.netcdf_kind = FewsNetCDFKind.simulated_forecast_per_forecast_period
+    instance.config.netcdf_kind = FewsNetCDFKind.simulated_forecast_per_lead_time
     instance.config.directory = (
-        "tests/data/webservice_responses_netcdf/simulations_per_forecast_period/ensemble"
+        "tests/data/webservice_responses_netcdf/simulations_per_lead_time/ensemble"
     )
     return instance
 
@@ -708,9 +708,9 @@ def fews_netcdf_simulated_forecast_single_fp(
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
     instance = deepcopy(fews_netcdf_simulated_forecast_single_frt)
-    instance.config.netcdf_kind = FewsNetCDFKind.simulated_forecast_per_forecast_period
+    instance.config.netcdf_kind = FewsNetCDFKind.simulated_forecast_per_lead_time
     instance.config.directory = (
-        "tests/data/webservice_responses_netcdf/simulations_per_forecast_period/single"
+        "tests/data/webservice_responses_netcdf/simulations_per_lead_time/single"
     )
     return instance
 
@@ -739,9 +739,9 @@ def fews_netcdf_simulated_forecast_probabilistic_fp(
 ) -> FewsNetCDF:
     """Fewsnetcdf datasource sim config."""
     instance = deepcopy(fews_netcdf_simulated_forecast_probabilistic_frt)
-    instance.config.netcdf_kind = FewsNetCDFKind.simulated_forecast_per_forecast_period
+    instance.config.netcdf_kind = FewsNetCDFKind.simulated_forecast_per_lead_time
     instance.config.directory = (
-        "tests/data/webservice_responses_netcdf/simulations_per_forecast_period/probabilistic"
+        "tests/data/webservice_responses_netcdf/simulations_per_lead_time/probabilistic"
     )
     return instance
 
@@ -933,7 +933,7 @@ def cli_dummy_pipeline_config_yaml(tmp_path: Path) -> Path:
             start=datetime(2026, 1, 1, tzinfo=timezone.utc),
             end=datetime(2026, 1, 2, tzinfo=timezone.utc),
         ),
-        forecast_periods=ForecastPeriods(unit=TimeUnits.day, values=[1, 2]),
+        lead_times=LeadTimes(unit=TimeUnits.day, values=[1, 2]),
         verification_pairs=[
             VerificationPair(
                 id="pair1",

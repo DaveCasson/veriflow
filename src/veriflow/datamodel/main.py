@@ -109,7 +109,7 @@ class InputDataset:
         Transform array of historical data into forecast structure.
 
         Given an observation array with dimension 'time' and a simulation array with
-        dimensions 'forecast_reference_time' and 'forecast_period', project the observed
+        dimensions 'forecast_reference_time' and 'lead_time', project the observed
         values onto the simulation array.
 
         This method is called at runtime when the pipeline starts a score computation on forecast
@@ -118,7 +118,7 @@ class InputDataset:
         """
         # Stack forecast time axes
         stacked_time = sim[StandardDim.time].stack(
-            z=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
+            z=(StandardDim.forecast_reference_time, StandardDim.lead_time),
         )
 
         # Reindex observations onto stacked forecast times
@@ -129,26 +129,26 @@ class InputDataset:
         # Attach forecast coordinates explicitly (from the MultiIndex)
         z_index = stacked_time.indexes["z"]  # type:ignore[misc]
 
-        # Assign forecast_reference_time and forecast_period coordinates to the aligned
+        # Assign forecast_reference_time and lead_time coordinates to the aligned
         # observations, based on the MultiIndex of the stacked time dimension. This is
         # necessary because after re-indexing, the original time dimension of the observations
         # is now aligned with the stacked time dimension of the simulations, which has a MultiIndex
-        # of forecast_reference_time and forecast_period.
+        # of forecast_reference_time and lead_time.
         obs_aligned = obs_aligned.assign_coords(
             forecast_reference_time=(  # type:ignore[misc]
                 StandardDim.time,
                 z_index.get_level_values(StandardDim.forecast_reference_time),  # type:ignore[misc]
             ),
-            forecast_period=(  # type:ignore[misc]
+            lead_time=(  # type:ignore[misc]
                 StandardDim.time,
-                z_index.get_level_values(StandardDim.forecast_period),  # type:ignore[misc]
+                z_index.get_level_values(StandardDim.lead_time),  # type:ignore[misc]
             ),
         )
 
         # Set the time coordinate to be the stacked time (MultiIndex of forecast_reference_time and
-        # forecast_period)
+        # lead_time)
         obs_indexed = obs_aligned.set_index(
-            time=(StandardDim.forecast_reference_time, StandardDim.forecast_period),
+            time=(StandardDim.forecast_reference_time, StandardDim.lead_time),
         )
 
         # Unstack into forecast space

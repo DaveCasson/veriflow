@@ -160,7 +160,7 @@ def test_get_data_returns_valid_data_array(
     request: pytest.FixtureRequest,
     fews_webservice: FewsWebservice,
 ) -> None:
-    """Check that the imported fewsnetcdf gives an xarray with the expected forecast periods."""
+    """Check that the imported fewsnetcdf gives an xarray with the expected lead times."""
     fews_netcdf: FewsWebservice = request.getfixturevalue(fews_webservice)
     datasource = fews_netcdf.get_data()
 
@@ -168,8 +168,7 @@ def test_get_data_returns_valid_data_array(
     schema.model_validate(fews_netcdf.dataset.to_dict(data=False))
 
     assert all(
-        datasource.dataset[StandardDim.forecast_period]
-        == datasource.config.forecast_periods.timedelta64,
+        datasource.dataset[StandardDim.lead_time] == datasource.config.lead_times.timedelta64,
     )
 
 
