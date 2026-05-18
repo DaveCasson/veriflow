@@ -62,16 +62,15 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
         list[
             Literal[
                 StandardDim.station,
-                StandardDim.time,
                 StandardDim.forecast_reference_time,
                 StandardDim.forecast_period,
+                StandardDim.time,
             ]
         ],
         Field(
             default_factory=list,
             description="The dimensions over which to reduce. Can be either forecast or historical "
             "dimensions, but not both. For historical verification, the reduce_dims can only "
-            "contain 'station' and 'time'. For forecast verification, the reduce_dims can only "
             "contain 'station' and 'time'. For forecast verification, the reduce_dims can only "
             "contain 'station', 'forecast_reference_time' and 'forecast_period'.",
         ),
@@ -111,6 +110,23 @@ class ReduceDimsHistoricalOrForecast(BaseModel):
             ]
             if k not in self.reduce_dims
         ]
+
+    @model_validator(mode="after")
+    def validate_reduce_dims(
+        self,
+    ) -> "ReduceDimsHistoricalOrForecast":
+        """Validate that reduce_dims only contains either forecast or historical dimensions."""
+        if (
+            StandardDim.forecast_reference_time in self.reduce_dims
+            or StandardDim.forecast_period in self.reduce_dims
+        ) and StandardDim.time in self.reduce_dims:
+            msg = (
+                "reduce_dims cannot contain both forecast and historical dimensions. "
+                "Please choose either 'time' for historical verification or "
+                "'forecast_reference_time' and 'forecast_period' for forecast verification.",
+            )
+            raise ValueError(msg)
+        return self
 
 
 class IdMap(RootModel[dict[str, dict[str, str]]]):

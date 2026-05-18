@@ -12,14 +12,18 @@ from pydantic import BaseModel
 
 from veriflow.configuration import Config
 from veriflow.configuration.base import IdMap, IdMappingConfig
-from veriflow.configuration.default.scores import ContinuousScoresConfig, CrpsForEnsembleConfig
+from veriflow.configuration.default.scores import (
+    ContinuousScoresConfig,
+    CrpsForEnsembleConfig,
+    ReduceDimsHistoricalOrForecast,
+)
 from veriflow.configuration.utils import (
     FewsWebserviceAuthConfig,
     ForecastPeriods,
     Range,
     TimeUnits,
 )
-from veriflow.constants import SCHEMA_VERSION
+from veriflow.constants import SCHEMA_VERSION, StandardDim
 
 
 @pytest.fixture  # type:ignore[misc] # has type overloaded function
@@ -167,6 +171,50 @@ def test_score_config_with_invalid_pair_reference(
     modified_config["verification_pair_ids"] = ["invalid_id"]  # type:ignore[misc]
     with pytest.raises(ValueError, match="Pair id"):
         _ = CrpsForEnsembleConfig(**modified_config)  # type:ignore[misc]
+
+
+def test_reduce_dims_forecast_validation() -> None:
+    """Test that reduce_dims validation works as expected."""
+    # Valid cases
+    valid_cases: list[
+        list[
+            Literal[
+                StandardDim.station,
+                StandardDim.forecast_reference_time,
+                StandardDim.forecast_period,
+                StandardDim.time,
+            ]
+        ]
+    ] = [
+        [StandardDim.station, StandardDim.time],
+        [StandardDim.station],
+        [StandardDim.station, StandardDim.forecast_reference_time],
+        [StandardDim.station, StandardDim.forecast_period],
+        [StandardDim.station, StandardDim.forecast_reference_time, StandardDim.forecast_period],
+    ]
+
+    for reduce_dims in valid_cases:
+        config = ReduceDimsHistoricalOrForecast(reduce_dims=reduce_dims)
+        assert config.reduce_dims == reduce_dims
+
+    # Invalid case: both historical and forecast dimensions
+    invalid_reduce_dims: list[
+        Literal[
+            StandardDim.station,
+            StandardDim.forecast_reference_time,
+            StandardDim.forecast_period,
+            StandardDim.time,
+        ]
+    ] = [
+        StandardDim.station,
+        StandardDim.time,
+        StandardDim.forecast_reference_time,
+    ]
+    with pytest.raises(
+        ValueError,
+        match="reduce_dims cannot contain both forecast and historical dimensions",
+    ):
+        _ = ReduceDimsHistoricalOrForecast(reduce_dims=invalid_reduce_dims)
 
 
 def test_score_config_with_nse_and_no_reduce_dims_raises_validation_error(

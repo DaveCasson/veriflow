@@ -71,13 +71,13 @@
       "description": "Config to compute categorical scores, based on an event definition.",
       "properties": {
         "reduce_dims": {
-          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
+          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
           "items": {
             "enum": [
               "station",
-              "time",
               "forecast_reference_time",
-              "forecast_period"
+              "forecast_period",
+              "time"
             ],
             "type": "string"
           },
@@ -134,13 +134,13 @@
       "description": "Configure multiple continuous scores.",
       "properties": {
         "reduce_dims": {
-          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
+          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
           "items": {
             "enum": [
               "station",
-              "time",
               "forecast_reference_time",
-              "forecast_period"
+              "forecast_period",
+              "time"
             ],
             "type": "string"
           },
