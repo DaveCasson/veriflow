@@ -25,7 +25,8 @@ class ArchiveKind(StrEnum):
 class FewsNetCDFKind(StrEnum):
     """FEWS NetCDF kind."""
 
-    observation = "observation"
+    external_historical = "external_historical"
+    simulated_historical = "simulated_historical"
     simulated_forecast_per_forecast_reference_time = (
         "simulated_forecast_per_forecast_reference_time"
     )

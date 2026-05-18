@@ -21,7 +21,7 @@ from veriflow.configuration.default.datasources import (
     FewsWebserviceConfig,
     ForecastRetrievalMethod,
 )
-from veriflow.constants import DataSourceKind, DataType
+from veriflow.constants import FORECAST_DATA_TYPES, DataSourceKind, DataType
 from veriflow.datasources.base import BaseDatasource
 from veriflow.datasources.fewsnetcdf import (
     FewsNetCDF,
@@ -80,6 +80,7 @@ class FewsWebservice(BaseDatasource):
     config_class = FewsWebserviceConfig
     supported_data_types: ClassVar[set[DataType]] = {
         DataType.observed_historical,
+        DataType.simulated_historical,
         DataType.simulated_forecast_ensemble,
         DataType.simulated_forecast_single,
         DataType.simulated_forecast_probabilistic,
@@ -147,10 +148,10 @@ class FewsWebservice(BaseDatasource):
                 netcdf_path.write_bytes(netcdf_data)
         return write_dir
 
-    def fetch_data(self) -> Self:
+    def fetch_data(self) -> Self:  # noqa: C901, PLR0915
         """Retrieve :py::class`~xarray.Dataset` from Delft-FEWS Webservice."""
-        # Get observations
-        if self.config.data_type == DataType.observed_historical:
+        # Get external_historical or simulated_historical data
+        if self.config.data_type in [DataType.observed_historical, DataType.simulated_historical]:
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Download data to temporary folder
                 response = self.client.get_timeseries(
@@ -160,7 +161,9 @@ class FewsWebservice(BaseDatasource):
                     start_time=self.config.verification_period_on_time.start,
                     end_time=self.config.verification_period_on_time.end,
                     export_id_map=self.config.export_id_map,
-                    timeseries_type=TimeseriesType.EXTERNAL_HISTORICAL,
+                    timeseries_type=TimeseriesType.EXTERNAL_HISTORICAL
+                    if self.config.data_type == DataType.observed_historical
+                    else TimeseriesType.SIMULATED_HISTORICAL,
                 )
 
                 # Unzip and write
@@ -172,12 +175,14 @@ class FewsWebservice(BaseDatasource):
                 # Load all downloaded data into one object
                 datasource = FewsNetCDF(
                     FewsNetCDFConfig(
-                        data_type=DataType.observed_historical,
+                        data_type=self.config.data_type,
                         directory=tmpdir,
                         filename_glob="*.nc",
                         import_adapter=DataSourceKind.FEWSNETCDF,
                         general=self.config.general,
-                        netcdf_kind=FewsNetCDFKind.observation,
+                        netcdf_kind=FewsNetCDFKind.external_historical
+                        if self.config.data_type == DataType.observed_historical
+                        else FewsNetCDFKind.simulated_historical,
                         id_mapping=self.config.id_mapping,
                         source=self.config.source,
                         parameter_ids=self.config.parameter_ids,
@@ -194,14 +199,17 @@ class FewsWebservice(BaseDatasource):
 
                 return self
 
+        # Validate that forecast_periods is not None, since it's required for fetching forecasts
+        if self.config.forecast_periods is None:
+            msg = (
+                f"For the datatype {self.config.data_type} the forecast period "
+                f"field must be provided in the config, and cannot be None."
+            )
+            raise ValueError(msg)
+
         # Get forecasts
         if (
-            self.config.data_type
-            in [
-                DataType.simulated_forecast_ensemble,
-                DataType.simulated_forecast_single,
-                DataType.simulated_forecast_probabilistic,
-            ]
+            self.config.data_type in FORECAST_DATA_TYPES
             and self.config.forecast_retrieval_method
             == ForecastRetrievalMethod.retrieve_all_forecast_data
         ):
@@ -356,18 +364,13 @@ class FewsWebservice(BaseDatasource):
                 return self
 
         elif (
-            self.config.data_type
-            in [
-                DataType.simulated_forecast_ensemble,
-                DataType.simulated_forecast_single,
-                DataType.simulated_forecast_probabilistic,
-            ]
+            self.config.data_type in FORECAST_DATA_TYPES
             and self.config.forecast_retrieval_method
             == ForecastRetrievalMethod.retrieve_forecast_data_per_lead_time
         ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmpdir_path = Path(tmpdir)
-                for fp in self.config.general.forecast_periods.stdlib_timedelta:
+                for fp in self.config.forecast_periods.stdlib_timedelta:
                     response = self.client.get_timeseries(
                         location_ids=self.config.location_ids,
                         parameter_ids=self.config.parameter_ids,
@@ -416,5 +419,5 @@ class FewsWebservice(BaseDatasource):
                 return self
 
         # Other simobs kinds are not supported (yet)
-        msg3 = f"Data type {self.data_type} not implemented yet."
+        msg3 = f"Data type {self.config.data_type} not implemented yet."
         raise NotImplementedError(msg3)

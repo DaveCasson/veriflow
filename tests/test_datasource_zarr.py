@@ -77,8 +77,8 @@ def test_get_data_local_store_caches(
     datasource.get_data()
 
     assert datasource.dataset.attrs["data_type"] == DataType.observed_historical
-    assert datasource.config.general.cache_dir.exists()
-    cached_files = list(datasource.config.general.cache_dir.glob("Zarr_*.nc"))
+    assert Path(datasource.config.general.cache_dir).exists()
+    cached_files = list(Path(datasource.config.general.cache_dir).glob("Zarr_*.nc"))
     assert len(cached_files) == 1
 
 

@@ -109,13 +109,14 @@ thresholds = [f"warn_{x}" for x in range(threshold_n)]
 @pytest.fixture
 def cache_dir(tmp_path: Path) -> Path:
     """Pytest cache directory."""
-    return tmp_path / "sub"
+    return str(tmp_path / "sub")
 
 
 # Before each test - remove the cache directory
 @pytest.fixture(autouse=True)
-def _ensure_empty_cache_dir_before_each_test(cache_dir: Path) -> None:
+def _ensure_empty_cache_dir_before_each_test(cache_dir: str) -> None:
     """Remove the cache directory before each test."""
+    cache_dir = Path(cache_dir)
     if cache_dir.exists():
         shutil.rmtree(cache_dir)
     cache_dir.mkdir(parents=True)
@@ -366,6 +367,27 @@ def xarray_general_info_config(cache_dir: Path) -> GeneralInfoConfig:
 
 
 @pytest.fixture
+def xarray_general_info_config_historical(cache_dir: Path) -> GeneralInfoConfig:
+    """GeneralInfoConfig for a single forecast."""
+    return GeneralInfoConfig(
+        verification_period=VerificationPeriod(
+            start=vp_start,
+            end=vp_end,
+            dimension=StandardDim.time,
+        ),
+        verification_pairs=[
+            VerificationPair(
+                id="pair1",
+                obs="observed",
+                sim="source_single",
+                variable="var_1",
+            ),
+        ],
+        cache_dir=cache_dir,
+    )
+
+
+@pytest.fixture
 def fews_general_info_config_ensemble(cache_dir: Path) -> GeneralInfoConfig:
     """GeneralInfoConfig for an ensemble."""
     return GeneralInfoConfig(
@@ -584,13 +606,45 @@ def fews_netcdf_observed_historical(
         {
             "import_adapter": "fewsnetcdf",
             "data_type": "observed_historical",
-            "netcdf_kind": "observation",
+            "netcdf_kind": "external_historical",
             "directory": "tests/data/webservice_responses_netcdf/observations",
             "filename_glob": "*.nc",
             "station_ids": ["H-RN-0001", "H-RN-0689"],
             "source": "observed",
             "general": fews_general_info_config_ensemble.model_dump(),
             "id_mapping": id_mapping_config_fewsnetcdf.model_dump(),
+        },
+    )
+
+
+@pytest.fixture
+def fews_netcdf_simulated_historical() -> FewsNetCDF:
+    """Fewsnetcdf datasource for simulated_historical."""
+    general = GeneralInfoConfig(
+        verification_period=VerificationPeriod(
+            start=datetime(2024, 10, 28, tzinfo=timezone.utc),
+            end=datetime(2024, 10, 30, tzinfo=timezone.utc),
+            dimension=StandardDim.time,
+        ),
+        verification_pairs=[
+            VerificationPair(
+                id="pair1",
+                obs="observed",
+                sim="source_ensemble",
+                variable="discharge",
+            ),
+        ],
+    )
+    return FewsNetCDF.from_config(
+        {
+            "import_adapter": "fewsnetcdf",
+            "data_type": "simulated_historical",
+            "netcdf_kind": "simulated_historical",
+            "directory": "tests/data/webservice_responses_netcdf/simulated_historical",
+            "filename_glob": "*.nc",
+            "station_ids": ["T508HMS", "T509HMS"],
+            "source": "some_simulated_historical_source",
+            "general": general.model_dump(),
         },
     )
 

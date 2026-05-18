@@ -173,6 +173,15 @@ class Preprocessor:
             dataset,
         )
 
+        if self.fews_netcdf_kind == FewsNetCDFKind.simulated_historical:
+            # We handle simulated historical NetCDFs separately, because this type is returned in
+            #   a forecast format by the FEWS-Webservice, including the analysis_time dimensions.
+            #   Internally, we want to convert this to a historical format, with time as the main
+            #   time dimension. We assume for a given parameter_id, location_id and
+            #   module_instance_id, there is only one analysis_time, which we convert to time.
+            #   For reference, see: https://publicwiki.deltares.nl/spaces/FEWSDOC/pages/8683850/02+Data+Handling+in+Delft-FEWS#id-02DataHandlinginDelftFEWS-SimulatedHistoricaltimeseries
+            dataset = dataset.drop_dims(StandardDim.forecast_reference_time)
+
         if self.fews_netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
             # Transform to full info sim dataset
             dataset = self.set_internal_time_dims_on_forecast(
@@ -495,16 +504,17 @@ class FewsNetCDF(BaseDatasource):
         preprocessor = Preprocessor(
             fews_netcdf_kind=self.config.netcdf_kind,
             filter_stations=self.config.station_ids,
-            filter_forecast_periods=self.config.forecast_periods.timedelta64,
+            filter_forecast_periods=self.config.forecast_periods.timedelta64
+            if self.config.forecast_periods is not None
+            else None,
         )
 
-        # Observations
-        if self.config.data_type == DataType.observed_historical:
+        # External historical data type
+        if self.config.data_type in [DataType.observed_historical, DataType.simulated_historical]:
             dataset = xr.open_mfdataset(
                 self.config.paths,  # type:ignore[arg-type] # generator is acceptable argument
                 preprocess=preprocessor,
             )
-
         # Simulations - per forecast reference time
         if self.config.netcdf_kind == FewsNetCDFKind.simulated_forecast_per_forecast_reference_time:
             dataset = xr.open_mfdataset(
@@ -533,7 +543,8 @@ class FewsNetCDF(BaseDatasource):
                 },
             )
         else:
-            # Filter historical data on time dim
+            # Register the original start and end times from the dataset loaded from disk
+            # Filter historical data (external_historical and simulated_historical)on time dim
             dataset = dataset.sel(
                 {
                     StandardDim.time: slice(  # type:ignore[misc]
@@ -542,6 +553,14 @@ class FewsNetCDF(BaseDatasource):
                     ),
                 },
             )
+            if dataset[StandardDim.time].size == 0:
+                msg = (
+                    "No time steps found in the dataset after applying the verification period "
+                    f"filter. Dataset source: {self.config.source} no time steps between "
+                    f"{self.config.verification_period_on_time.start} to "
+                    f"{self.config.verification_period_on_time.end}"
+                )
+                raise ValueError(msg)
 
         # Load into memory, in the future support dask
         dataset.load()

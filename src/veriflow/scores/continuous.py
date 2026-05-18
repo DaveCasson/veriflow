@@ -51,6 +51,8 @@ class ContinuousScores(BaseScore):
     config_class = ContinuousScoresConfig
     supported_data_types: ClassVar[set[DataType]] = {
         DataType.simulated_forecast_single,
+        DataType.observed_historical,
+        DataType.simulated_historical,
     }
 
     def __init__(self, config: ContinuousScoresConfig) -> None:

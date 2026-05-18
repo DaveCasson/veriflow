@@ -51,7 +51,7 @@
           "type": "string"
         },
         "comment": {
-          "default": "Verification results created by {NAME}",
+          "default": "Verification results created by veriflow",
           "description": "Value for the comment attribute in the generated NetCDF.",
           "title": "Comment",
           "type": "string"
@@ -71,9 +71,11 @@
       "description": "Config to compute categorical scores, based on an event definition.",
       "properties": {
         "reduce_dims": {
+          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
           "items": {
             "enum": [
               "station",
+              "time",
               "forecast_reference_time",
               "forecast_period"
             ],
@@ -132,9 +134,11 @@
       "description": "Configure multiple continuous scores.",
       "properties": {
         "reduce_dims": {
+          "description": "The dimensions over which to reduce. Can be either forecast or historical dimensions, but not both. For historical verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station' and 'time'. For forecast verification, the reduce_dims can only contain 'station', 'forecast_reference_time' and 'forecast_period'.",
           "items": {
             "enum": [
               "station",
+              "time",
               "forecast_reference_time",
               "forecast_period"
             ],
@@ -436,7 +440,8 @@
     "FewsNetCDFKind": {
       "description": "FEWS NetCDF kind.",
       "enum": [
-        "observation",
+        "external_historical",
+        "simulated_historical",
         "simulated_forecast_per_forecast_reference_time",
         "simulated_forecast_per_forecast_period"
       ],
@@ -647,8 +652,15 @@
           "type": "array"
         },
         "forecast_periods": {
-          "$ref": "#/$defs/ForecastPeriods",
-          "default": "A set of forecast periods for which to evaluate of the verification scores. A forecast period is the timedelta between the forecast reference time of a forecast (t0, analysis_time, initialization time) and the valid time (time, observed time) and is also known as: lead time or forecast horizon)"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ForecastPeriods"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "cache_dir": {
           "default": ".verification_cache",
@@ -656,7 +668,6 @@
             "Path pointing to a cache directory. ",
             "Will be automatically created if it doesn't yet exist."
           ],
-          "format": "path",
           "title": "Cache Dir",
           "type": "string"
         }

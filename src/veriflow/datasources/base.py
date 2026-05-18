@@ -3,6 +3,7 @@
 import hashlib
 from abc import abstractmethod
 from os import R_OK, access
+from pathlib import Path
 from typing import ClassVar, Self
 
 import xarray as xr
@@ -69,12 +70,12 @@ class BaseDatasource(Base):
             how="all",
         )
 
-    def get_data(self) -> Self:
+    def get_data(self) -> Self:  # noqa: C901
         """Get cached data, or fetch and cache."""
         config_json = self.config.model_dump_json().encode("utf-8")
         config_hash = hashlib.sha256(config_json).hexdigest()
 
-        cache_dir = self.config.general.cache_dir
+        cache_dir = Path(self.config.general.cache_dir)
 
         # Create cache if not exists
         if not cache_dir.exists():
@@ -117,6 +118,13 @@ class BaseDatasource(Base):
 
         # Additional layer to filter time, frt and fp properly according to config.
         if dataset_original.attrs["data_type"] in FORECAST_DATA_TYPES:  # type:ignore[misc]
+            # Runtime check
+            if not self.config.forecast_periods:
+                msg = (
+                    "Forecast periods must be provided in the config for forecast data types, "
+                    "but got None."
+                )
+                raise ValueError(msg)
             # Select only relevant forecast periods for simulations
             dataset_original = dataset_original.sel(
                 forecast_period=self.config.forecast_periods.timedelta64,
