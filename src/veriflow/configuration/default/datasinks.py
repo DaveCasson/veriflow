@@ -30,7 +30,7 @@ class BaseCFCompliantConfig(LocalFile, BaseDatasinkConfig):
     comment: Annotated[
         str,
         Field(description="Value for the comment attribute in the generated NetCDF."),
-    ] = "Verification results created by {NAME}"
+    ] = f"Verification results created by {NAME}"
 
 
 class FewsNetCDFOutputConfig(BaseCFCompliantConfig):

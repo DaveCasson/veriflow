@@ -37,7 +37,7 @@ class Csv(BaseDatasource):
         # Check that the df has the correct structure
         expected_columns = [
             StandardDim.station,
-            StandardDim.variable,
+            "variable",
             StandardDim.threshold,
             "value",
         ]
@@ -48,7 +48,7 @@ class Csv(BaseDatasource):
         # Pivot the long-form table into a Dataset where each unique variable becomes a
         # data variable with dims (station, threshold).
         pivoted = threshold_df.set_index(
-            [StandardDim.station, StandardDim.variable, StandardDim.threshold],
+            [StandardDim.station, "variable", StandardDim.threshold],
         ).to_xarray()["value"]
 
         # Filter the array based on the configured station, variable and threshold ids
@@ -64,7 +64,7 @@ class Csv(BaseDatasource):
             raise ValueError(msg) from e
 
         # Convert the variable dim into separate data variables, one per variable.
-        dataset = pivoted.to_dataset(dim=StandardDim.variable)
+        dataset = pivoted.to_dataset(dim="variable")
 
         # Set the data type and source as attributes for later use in the verification process
         dataset.attrs["data_type"] = "threshold"  # type:ignore[misc]

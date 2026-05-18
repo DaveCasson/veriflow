@@ -55,6 +55,80 @@ class ReduceDimsForecast(BaseModel):
         ]
 
 
+class ReduceDimsHistoricalOrForecast(BaseModel):
+    """The dimensions over which a historical data can be reduced."""
+
+    reduce_dims: Annotated[
+        list[
+            Literal[
+                StandardDim.station,
+                StandardDim.forecast_reference_time,
+                StandardDim.forecast_period,
+                StandardDim.time,
+            ]
+        ],
+        Field(
+            default_factory=list,
+            description="The dimensions over which to reduce. Can be either forecast or historical "
+            "dimensions, but not both. For historical verification, the reduce_dims can only "
+            "contain 'station' and 'time'. For forecast verification, the reduce_dims can only "
+            "contain 'station', 'forecast_reference_time' and 'forecast_period'.",
+        ),
+    ]
+
+    @property
+    def preserve_dims(self) -> list[StandardDim]:
+        """The dimensions to preserve."""
+        if (
+            StandardDim.forecast_reference_time in self.reduce_dims
+            or StandardDim.forecast_period in self.reduce_dims
+        ):
+            return [
+                k
+                for k in [
+                    StandardDim.station,
+                    StandardDim.time,
+                    StandardDim.forecast_reference_time,
+                    StandardDim.forecast_period,
+                ]
+                if k not in self.reduce_dims
+            ]
+        if StandardDim.time in self.reduce_dims:
+            return [
+                k
+                for k in [
+                    StandardDim.station,
+                    StandardDim.time,
+                ]
+                if k not in self.reduce_dims
+            ]
+
+        return [
+            k
+            for k in [
+                StandardDim.station,
+            ]
+            if k not in self.reduce_dims
+        ]
+
+    @model_validator(mode="after")
+    def validate_reduce_dims(
+        self,
+    ) -> "ReduceDimsHistoricalOrForecast":
+        """Validate that reduce_dims only contains either forecast or historical dimensions."""
+        if (
+            StandardDim.forecast_reference_time in self.reduce_dims
+            or StandardDim.forecast_period in self.reduce_dims
+        ) and StandardDim.time in self.reduce_dims:
+            msg = (
+                "reduce_dims cannot contain both forecast and historical dimensions. "
+                "Please choose either 'time' for historical verification or "
+                "'forecast_reference_time' and 'forecast_period' for forecast verification.",
+            )
+            raise ValueError(msg)
+        return self
+
+
 class IdMap(RootModel[dict[str, dict[str, str]]]):
     """Mapping from internal IDs to external IDs per data source."""
 
@@ -101,7 +175,7 @@ class CrpsCDFConfig(BaseScoreConfig, ReduceDimsForecast):
     ] = "exact"
 
 
-class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsForecast):
+class ContinuousScoresConfig(BaseScoreConfig, ReduceDimsHistoricalOrForecast):
     """Configure multiple continuous scores."""
 
     score_adapter: Literal[ScoreKind.continuous_scores]
@@ -132,7 +206,7 @@ class ThresholdEvent(BaseEvent):
     ]
 
 
-class CategoricalScoresConfig(BaseCategoricalScoreConfig, ReduceDimsForecast):
+class CategoricalScoresConfig(BaseCategoricalScoreConfig, ReduceDimsHistoricalOrForecast):
     """Config to compute categorical scores, based on an event definition."""
 
     score_adapter: Literal[ScoreKind.categorical_scores]

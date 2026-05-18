@@ -144,7 +144,6 @@ class StandardDim(StrEnum):
     realization = "realization"
     forecast_reference_time = "forecast_reference_time"
     forecast_period = "forecast_period"
-    variable = "variable"
     threshold = "threshold"
 
 
@@ -259,14 +258,6 @@ class StandardCoord:
             ("standard_name", "forecast_period"),
             ("long_name", "forecast_period"),
         ),
-    )
-    variable = CoordinateProperties(
-        StandardDim.variable,
-        (("long_name", "simulation_or_observation_kind"),),
-    )
-    units = CoordinateProperties(
-        "units",
-        (("long_name", "units"),),
     )
 
 

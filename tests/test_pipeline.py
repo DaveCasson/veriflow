@@ -8,11 +8,18 @@ from veriflow.configuration.config import SupportedSchemaVersion
 from veriflow.configuration.default.scores import (
     BaseScoreConfig,
     CategoricalScoresConfig,
+    ContinuousScoresConfig,
     EventOperator,
     ThresholdEvent,
 )
 from veriflow.configuration.file import Config
-from veriflow.constants import ScoreKind, SupportedCategoricalScores
+from veriflow.constants import (
+    DataType,
+    ScoreKind,
+    StandardDim,
+    SupportedCategoricalScores,
+    SupportedContinuousScore,
+)
 from veriflow.datasinks.cf_compliant_netcdf import CFCompliantNetCDF
 from veriflow.datasources.csv import Csv
 from veriflow.datasources.fewsnetcdf import FewsNetCDF
@@ -72,3 +79,49 @@ def test_pipeline_xarray_categorical_scores(
         datasinks=[datasink_cf_compliant_netcdf.config],
     )
     _ = run_pipeline(config)
+
+
+def test_pipeline_historical_data_only(
+    xarray_general_info_config_historical: GeneralInfoConfig,
+    xarray_observed_historical_datasource: NetCDF,
+    datasink_cf_compliant_netcdf: CFCompliantNetCDF,
+) -> None:
+    """Full integration tests of the pipeline."""
+    # Test running with only historical data
+
+    continuous_score_config = ContinuousScoresConfig(
+        general=xarray_general_info_config_historical,
+        score_adapter=ScoreKind.continuous_scores,
+        scores=[SupportedContinuousScore.rmse, SupportedContinuousScore.mae],
+        reduce_dims=[StandardDim.time],
+    )
+
+    # Create a dummy datasource, by copying the observed historical
+    # For testing purposes, set the data_type to "simulated_historical"
+    dummy_config = xarray_observed_historical_datasource.config.model_copy()
+    dummy_config.source = "source_single"
+    dummy_config.data_type = DataType.simulated_historical
+
+    config = Config(
+        version=SupportedSchemaVersion.V0,
+        general=xarray_general_info_config_historical,
+        datasources=[
+            xarray_observed_historical_datasource.config,
+            dummy_config,
+        ],
+        scores=[continuous_score_config],
+        datasinks=[datasink_cf_compliant_netcdf.config],
+    )
+    output_dataset = run_pipeline(config)
+    verification_pair = next(iter(output_dataset.verification_pairs))
+    dataset = output_dataset.get(verification_pair)
+
+    # Test wether the pipeline runs successfully and produces the expected output dataset.
+    # Since the two datasources are identical, we expect perfect scores.
+
+    assert "rmse" in dataset.data_vars
+    assert dataset["rmse"].dims == ("station",)
+    assert all(dataset["rmse"] == 0)
+    assert "mae" in dataset.data_vars
+    assert dataset["mae"].dims == ("station",)
+    assert all(dataset["mae"] == 0)

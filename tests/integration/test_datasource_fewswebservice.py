@@ -5,12 +5,17 @@
 import os
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import pytest
 import requests
 import xarray as xr
 import yaml
 
+from veriflow.configuration.base import GeneralInfoConfig
+from veriflow.configuration.config import SupportedSchemaVersion
+from veriflow.configuration.default.datasources import FewsWebserviceConfig
+from veriflow.configuration.utils import VerificationPair, VerificationPeriod
 from veriflow.constants import StandardDim
 from veriflow.datasources.fewswebservice import FewsWebservice
 from veriflow.datasources.inputschemas import INPUT_SCHEMAS
@@ -166,3 +171,39 @@ def test_get_data_returns_valid_data_array(
         datasource.dataset[StandardDim.forecast_period]
         == datasource.config.forecast_periods.timedelta64,
     )
+
+
+@pytest.mark.skipif(SKIP_LIVE_WEBSERVICE_TEST, reason="Skipping live webservice tests")
+def test_get_data_for_simulated_historical() -> None:
+    """Check that the imported fewsnetcdf gives an xarray with the expected time dimension."""
+    general = GeneralInfoConfig(
+        version=SupportedSchemaVersion.V0,
+        verification_period=VerificationPeriod(
+            start=datetime(2024, 10, 28, tzinfo=timezone.utc),
+            end=datetime(2024, 10, 30, tzinfo=timezone.utc),
+            dimension=StandardDim.time,
+        ),
+        verification_pairs=[
+            VerificationPair(
+                id="idtest",
+                obs="observed_historical",
+                sim="simulated_historical",
+                variable="Qsim",
+            ),
+        ],
+    )
+    config = FewsWebserviceConfig(
+        general=general,
+        import_adapter="fewswebservice",
+        source="source_single",
+        data_type="simulated_historical",
+        location_ids=["T508HMS", "T509HMS"],
+        parameter_ids=["Q.sim"],
+        module_instance_id="HMS_TM05_Update",
+        webservice_version="2025.02",
+    )
+    fews_webservice = FewsWebservice(config)
+    fews_webservice.get_data()
+
+    schema = INPUT_SCHEMAS["simulated_historical"]
+    schema.model_validate(fews_webservice.dataset.to_dict(data=False))

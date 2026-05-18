@@ -16,7 +16,6 @@ To generate a yaml / json file with the json representation of this schema:
 # ruff: noqa: D102 Do not require class docstrings for the classes in this file
 
 from collections.abc import Iterable
-from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Self
 
 import xarray as xr
@@ -48,23 +47,23 @@ class GeneralInfoConfig(BaseModel):
         ),
     ]
     forecast_periods: Annotated[
-        ForecastPeriods,
+        ForecastPeriods | None,
         Field(
             "A set of forecast periods for which to evaluate of the verification scores. "
             "A forecast period is the timedelta between the forecast reference time of a forecast "
             "(t0, analysis_time, initialization time) and the valid time (time, observed time) "
             "and is also known as: lead time or forecast horizon)",
         ),
-    ]
+    ] = None
     cache_dir: Annotated[
-        Path,
+        str,
         Field(
             description=(
                 "Path pointing to a cache directory. ",
                 "Will be automatically created if it doesn't yet exist.",
             ),
         ),
-    ] = ".verification_cache"  # type:ignore[assignment] # Allow Path type for default value, since it will be converted to Path during validation.
+    ] = ".verification_cache"
 
     def get_verification_pair(self, pair_id: str) -> VerificationPair:
         """Get one verification_pair by its id."""
@@ -79,7 +78,10 @@ class GeneralInfoConfig(BaseModel):
     @property
     def verification_period_on_time(self) -> TimePeriod:
         """The verification period along the time dimension."""
-        if self.verification_period.dimension == "forecast_reference_time":
+        if (
+            self.verification_period.dimension == StandardDim.forecast_reference_time
+            and self.forecast_periods is not None
+        ):
             start = self.verification_period.start + self.forecast_periods.min
             end = self.verification_period.end + self.forecast_periods.max
             return TimePeriod(start=start, end=end)
@@ -88,11 +90,22 @@ class GeneralInfoConfig(BaseModel):
     @property
     def verification_period_on_frt(self) -> TimePeriod:
         """The verification period along the forecast reference time dimension."""
-        if self.verification_period.dimension == "time":
+        if self.verification_period.dimension == "time" and self.forecast_periods is not None:
             start = self.verification_period.start - self.forecast_periods.max
             end = self.verification_period.end - self.forecast_periods.min
             return TimePeriod(start=start, end=end)
         return self.verification_period
+
+    @model_validator(mode="after")
+    def verification_period_and_forecast_periods_consistent(self) -> Self:
+        """Check that the verification period and forecast periods are consistent."""
+        if self.forecast_periods is None and self.verification_period.dimension != StandardDim.time:
+            msg = (
+                "When no forecast periods are provided, the verification period should be defined "
+                "along the time dimension (verification_period.dimension should be 'time')."
+            )
+            raise ValueError(msg)
+        return self
 
 
 class IdMap(RootModel[dict[str, dict[str, str]]]):
@@ -199,7 +212,7 @@ class BaseDatasourceConfig(BaseConfig):
     id_mapping: SkipJsonSchema[IdMappingConfig] | None = None
 
     @property
-    def forecast_periods(self) -> ForecastPeriods:
+    def forecast_periods(self) -> ForecastPeriods | None:
         return self.general.forecast_periods
 
     @property
@@ -274,7 +287,7 @@ class BaseScoreConfig(BaseConfig):
         ]
 
     @property
-    def forecast_periods(self) -> ForecastPeriods:
+    def forecast_periods(self) -> ForecastPeriods | None:
         return self.general.forecast_periods
 
     @model_validator(mode="after")

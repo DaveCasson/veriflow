@@ -3,10 +3,10 @@
 import pytest
 import xarray as xr
 
-from veriflow.constants import StandardDim
+from veriflow.constants import DataType, StandardDim
 from veriflow.datasinks.fewsnetcdf import FewsNetcdfOutputSchema
 from veriflow.datasources.fewsnetcdf import FewsNetCDF
-from veriflow.datasources.inputschemas import INPUT_SCHEMAS
+from veriflow.datasources.inputschemas import INPUT_SCHEMAS, validate_input_data
 
 
 def test_get_data_compliant_file_happy(
@@ -28,7 +28,17 @@ def test_get_data_observed_historical(
     fews_netcdf_observed_historical: FewsNetCDF,
 ) -> None:
     """Check that the imported fewsnetcdf gives an xarray with the expected content."""
-    _ = fews_netcdf_observed_historical.get_data()
+    obj = fews_netcdf_observed_historical.get_data()
+    validate_input_data(obj.dataset)
+
+
+def test_get_data_simulated_historical(
+    fews_netcdf_simulated_historical: FewsNetCDF,
+) -> None:
+    """Check that the imported fewsnetcdf gives an xarray with the expected content."""
+    obj = fews_netcdf_simulated_historical.get_data()
+    assert obj.dataset.attrs["data_type"] == DataType.simulated_historical  # type:ignore[misc]
+    validate_input_data(obj.dataset)
 
 
 @pytest.mark.parametrize(
@@ -52,7 +62,7 @@ def test_get_data_returns_valid_data_array(
 
     schema = INPUT_SCHEMAS[fews_netcdf.config.data_type]
     schema.model_validate(fews_netcdf.dataset.to_dict(data=False))  # type:ignore[misc]
-
+    assert datasource.config.forecast_periods is not None
     assert all(
         datasource.dataset[StandardDim.forecast_period]
         == datasource.config.forecast_periods.timedelta64,

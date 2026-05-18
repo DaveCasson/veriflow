@@ -334,7 +334,7 @@ INPUT_SCHEMAS: dict[DataType, BaseModel] = {
 }
 
 
-def validate_input_data(dataset: xr.Dataset) -> BaseModel:
+def validate_input_data(dataset: xr.Dataset) -> None:
     """Validate an input ``xr.Dataset`` against its schema.
 
     The data type is determined from the ``data_type`` attribute on the dataset.
@@ -355,4 +355,3 @@ def validate_input_data(dataset: xr.Dataset) -> BaseModel:
 
     data_dict = dataset.to_dict(data=False)
     schema_class.model_validate(data_dict)
-    return schema_class
