@@ -112,6 +112,8 @@ def create_app(output_dataset: OutputDataset) -> Dash:
     )
     crps_left_stations = get_crps_controls(default_left_pair_id)
     crps_right_stations = get_crps_controls(default_right_pair_id)
+    rank_left_stations, rank_left_lead_times = scatter_left_stations, scatter_left_forecast
+    rank_right_stations, rank_right_lead_times = scatter_right_stations, scatter_right_forecast
 
     app = Dash(__name__)
 
@@ -240,6 +242,74 @@ def create_app(output_dataset: OutputDataset) -> Dash:
             },
         )
 
+    def make_rank_histogram_panel(panel_key, default_pair_id, stations, lead_time_labels):
+        return html.Div(
+            [
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Label("Verification Pair"),
+                                dcc.Dropdown(
+                                    id=f"rank-verification-pair-dropdown-{panel_key}",
+                                    options=[
+                                        {
+                                            "label": (
+                                                f"{pair.id} ({pair.obs} vs {pair.sim}) "
+                                                f"[{pair.variable}]"
+                                            ),
+                                            "value": pair.id,
+                                        }
+                                        for pair in verification_pairs
+                                    ],
+                                    value=default_pair_id,
+                                    clearable=False,
+                                ),
+                            ],
+                            style={"flex": "1", "minWidth": "280px"},
+                        ),
+                        html.Div(
+                            [
+                                html.Label("Station"),
+                                dcc.Dropdown(
+                                    id=f"rank-station-dropdown-{panel_key}",
+                                    options=[{"label": s, "value": s} for s in stations],
+                                    value=stations[0],
+                                    clearable=False,
+                                    searchable=True,
+                                ),
+                            ],
+                            style={"flex": "1", "minWidth": "260px"},
+                        ),
+                        html.Div(
+                            [
+                                html.Label("Lead Time"),
+                                dcc.Dropdown(
+                                    id=f"rank-lead-time-dropdown-{panel_key}",
+                                    options=[{"label": p, "value": p} for p in lead_time_labels],
+                                    value=lead_time_labels[0],
+                                    clearable=False,
+                                ),
+                            ],
+                            style={"flex": "1", "minWidth": "220px"},
+                        ),
+                    ],
+                    style=STYLES["filters"],
+                ),
+                dcc.Graph(
+                    id=f"rank-histogram-plot-{panel_key}",
+                    style={"height": "620px", **STYLES["card"]},
+                ),
+            ],
+            style={
+                "flex": "1 1 560px",
+                "minWidth": "460px",
+                "display": "flex",
+                "flexDirection": "column",
+                "gap": "8px",
+            },
+        )
+
     views_bar = html.Div(
         [
             dcc.Tabs(
@@ -247,6 +317,7 @@ def create_app(output_dataset: OutputDataset) -> Dash:
                 children=[
                     dcc.Tab(label="Scatter", value="scatter"),
                     dcc.Tab(label="CRPS", value="crps"),
+                    dcc.Tab(label="Rank Histogram", value="rank_histogram"),
                 ],
                 value="scatter",
                 parent_style={"margin": "0"},
@@ -303,6 +374,30 @@ def create_app(output_dataset: OutputDataset) -> Dash:
         style={"display": "none"},
     )
 
+    rank_histogram_view = html.Div(
+        [
+            html.Div(
+                [
+                    make_rank_histogram_panel(
+                        panel_key="left",
+                        default_pair_id=default_left_pair_id,
+                        stations=rank_left_stations,
+                        lead_time_labels=rank_left_lead_times,
+                    ),
+                    make_rank_histogram_panel(
+                        panel_key="right",
+                        default_pair_id=default_right_pair_id,
+                        stations=rank_right_stations,
+                        lead_time_labels=rank_right_lead_times,
+                    ),
+                ],
+                style={"display": "flex", "gap": "16px", "flexWrap": "wrap"},
+            ),
+        ],
+        id="rank-histogram-view",
+        style={"display": "none"},
+    )
+
     app.layout = html.Div(
         [
             views_bar,
@@ -310,6 +405,7 @@ def create_app(output_dataset: OutputDataset) -> Dash:
                 [
                     scatter_view,
                     crps_view,
+                    rank_histogram_view,
                 ],
                 style={"minWidth": "0"},
             ),
@@ -320,12 +416,15 @@ def create_app(output_dataset: OutputDataset) -> Dash:
     @app.callback(
         Output("scatter-view", "style"),
         Output("crps-view", "style"),
+        Output("rank-histogram-view", "style"),
         Input("view-selector", "value"),
     )
     def switch_view(selected_view):
         if selected_view == "crps":
-            return {"display": "none"}, {"display": "block"}
-        return {"display": "block"}, {"display": "none"}
+            return {"display": "none"}, {"display": "block"}, {"display": "none"}
+        if selected_view == "rank_histogram":
+            return {"display": "none"}, {"display": "none"}, {"display": "block"}
+        return {"display": "block"}, {"display": "none"}, {"display": "none"}
 
     def make_scatter_figure(
         selected_pair_id,
@@ -503,6 +602,26 @@ def create_app(output_dataset: OutputDataset) -> Dash:
         )
         return fig
 
+    def make_rank_histogram_figure(selected_pair_id, selected_station, selected_lead_time):
+        ds = get_pair_dataset(selected_pair_id)
+        lead_time_values, lead_time_labels = get_lead_time_labels(ds)
+        lead_time_lookup = dict(zip(lead_time_labels, lead_time_values, strict=True))
+        lead_time = lead_time_lookup[selected_lead_time]
+        hist = ds["histogram_rank"].sel(station=selected_station, lead_time=lead_time)
+        x = hist.coords["rank"].values
+        y = hist.values
+
+        fig = go.Figure(
+            data=[go.Bar(x=x, y=y, marker_color=THEME.accent)],
+            layout=go.Layout(
+                xaxis_title="Rank",
+                yaxis_title="Count",
+                template=PLOT_TEMPLATE,
+                title="Rank Histogram",
+            ),
+        )
+        return fig
+
     def register_scatter_panel_callbacks(panel_key):
         @app.callback(
             Output(f"scatter-station-dropdown-{panel_key}", "options"),
@@ -564,6 +683,40 @@ def create_app(output_dataset: OutputDataset) -> Dash:
                 selected_stations,
             )
 
+    def register_rank_histogram_panel_callbacks(panel_key):
+        @app.callback(
+            Output(f"rank-station-dropdown-{panel_key}", "options"),
+            Output(f"rank-station-dropdown-{panel_key}", "value"),
+            Output(f"rank-lead-time-dropdown-{panel_key}", "options"),
+            Output(f"rank-lead-time-dropdown-{panel_key}", "value"),
+            Input(f"rank-verification-pair-dropdown-{panel_key}", "value"),
+        )
+        def update_rank_histogram_controls(selected_pair_id):
+            stations, lead_time_labels = get_scatter_controls(selected_pair_id)
+            return (
+                [{"label": s, "value": s} for s in stations],
+                stations[0],
+                [{"label": l, "value": l} for l in lead_time_labels],
+                lead_time_labels[0],
+            )
+
+        @app.callback(
+            Output(f"rank-histogram-plot-{panel_key}", "figure"),
+            Input(f"rank-verification-pair-dropdown-{panel_key}", "value"),
+            Input(f"rank-station-dropdown-{panel_key}", "value"),
+            Input(f"rank-lead-time-dropdown-{panel_key}", "value"),
+        )
+        def update_rank_histogram_figure(
+            selected_pair_id,
+            selected_station,
+            selected_lead_time,
+        ):
+            return make_rank_histogram_figure(
+                selected_pair_id,
+                selected_station,
+                selected_lead_time,
+            )
+
     @app.callback(
         Output("crps-station-dropdown-left", "value"),
         Output("crps-station-dropdown-right", "value"),
@@ -597,5 +750,7 @@ def create_app(output_dataset: OutputDataset) -> Dash:
     register_scatter_panel_callbacks("right")
     register_crps_panel_callbacks("left")
     register_crps_panel_callbacks("right")
+    register_rank_histogram_panel_callbacks("left")
+    register_rank_histogram_panel_callbacks("right")
 
     return app
