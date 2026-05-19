@@ -76,15 +76,15 @@ def create_app(output_dataset: OutputDataset) -> Dash:
     def get_pair_dataset(pair_id):
         return output_dataset.get(pair_lookup[pair_id])
 
-    def get_forecast_period_labels(ds):
-        values = list(ds.coords["forecast_period"].values)
+    def get_lead_time_labels(ds):
+        values = list(ds.coords["lead_time"].values)
         labels = [f"{int(v / np.timedelta64(1, 'h'))} h" for v in values]
         return values, labels
 
     def get_scatter_controls(pair_id):
         ds = get_pair_dataset(pair_id)
         stations = [str(v) for v in ds.coords["station"].values]
-        _, forecast_labels = get_forecast_period_labels(ds)
+        _, forecast_labels = get_lead_time_labels(ds)
         return stations, forecast_labels
 
     def get_crps_score_variables(pair_id):
@@ -94,7 +94,7 @@ def create_app(output_dataset: OutputDataset) -> Dash:
         score_candidates = [
             var_name
             for var_name, data_array in ds.data_vars.items()
-            if var_name not in input_vars and "forecast_period" in data_array.dims
+            if var_name not in input_vars and "lead_time" in data_array.dims
         ]
         crps_candidates = [name for name in score_candidates if "crps" in name.lower()]
         return crps_candidates or score_candidates
@@ -156,9 +156,9 @@ def create_app(output_dataset: OutputDataset) -> Dash:
                         ),
                         html.Div(
                             [
-                                html.Label("Forecast Period"),
+                                html.Label("Lead Time"),
                                 dcc.Dropdown(
-                                    id=f"scatter-forecast-period-dropdown-{panel_key}",
+                                    id=f"scatter-lead-time-dropdown-{panel_key}",
                                     options=[{"label": p, "value": p} for p in forecast_labels],
                                     value=forecast_labels[0],
                                     clearable=False,
@@ -330,24 +330,24 @@ def create_app(output_dataset: OutputDataset) -> Dash:
     def make_scatter_figure(
         selected_pair_id,
         selected_station,
-        selected_forecast_period,
+        selected_lead_time,
     ):
         selected_pair = pair_lookup[selected_pair_id]
         ds = get_pair_dataset(selected_pair_id)
-        pair_forecast_period_values, pair_forecast_period_labels = get_forecast_period_labels(ds)
-        pair_forecast_period_lookup = dict(
-            zip(pair_forecast_period_labels, pair_forecast_period_values, strict=True),
+        pair_lead_time_values, pair_lead_time_labels = get_lead_time_labels(ds)
+        pair_lead_time_lookup = dict(
+            zip(pair_lead_time_labels, pair_lead_time_values, strict=True),
         )
-        forecast_period = pair_forecast_period_lookup[selected_forecast_period]
+        lead_time = pair_lead_time_lookup[selected_lead_time]
 
         obs_selected = ds[str(selected_pair.obs)].sel(
             station=selected_station,
-            forecast_period=forecast_period,
+            lead_time=lead_time,
             drop=True,
         )
         sim_selected = ds[str(selected_pair.sim)].sel(
             station=selected_station,
-            forecast_period=forecast_period,
+            lead_time=lead_time,
             drop=True,
         )
 
@@ -454,16 +454,14 @@ def create_app(output_dataset: OutputDataset) -> Dash:
             score_data = score_data.sel(station=stations)
 
         dims_to_reduce = [
-            dim_name
-            for dim_name in score_data.dims
-            if dim_name not in {"forecast_period", "station"}
+            dim_name for dim_name in score_data.dims if dim_name not in {"lead_time", "station"}
         ]
         if dims_to_reduce:
             score_data = score_data.mean(dim=dims_to_reduce, skipna=True)
 
-        forecast_period_values, forecast_period_labels = get_forecast_period_labels(ds)
+        lead_time_values, lead_time_labels = get_lead_time_labels(ds)
         forecast_hours = np.array(
-            [float(v / np.timedelta64(1, "h")) for v in forecast_period_values],
+            [float(v / np.timedelta64(1, "h")) for v in lead_time_values],
         )
 
         fig = go.Figure()
@@ -494,10 +492,10 @@ def create_app(output_dataset: OutputDataset) -> Dash:
 
         fig.update_layout(
             xaxis={
-                "title": "Forecast period (h)",
+                "title": "Lead Time (h)",
                 "tickmode": "array",
                 "tickvals": forecast_hours,
-                "ticktext": forecast_period_labels,
+                "ticktext": lead_time_labels,
             },
             yaxis_title=score_name,
             template=PLOT_TEMPLATE,
@@ -509,8 +507,8 @@ def create_app(output_dataset: OutputDataset) -> Dash:
         @app.callback(
             Output(f"scatter-station-dropdown-{panel_key}", "options"),
             Output(f"scatter-station-dropdown-{panel_key}", "value"),
-            Output(f"scatter-forecast-period-dropdown-{panel_key}", "options"),
-            Output(f"scatter-forecast-period-dropdown-{panel_key}", "value"),
+            Output(f"scatter-lead-time-dropdown-{panel_key}", "options"),
+            Output(f"scatter-lead-time-dropdown-{panel_key}", "value"),
             Input(f"scatter-verification-pair-dropdown-{panel_key}", "value"),
         )
         def update_scatter_controls(selected_pair_id):
@@ -526,17 +524,17 @@ def create_app(output_dataset: OutputDataset) -> Dash:
             Output(f"scatter-plot-{panel_key}", "figure"),
             Input(f"scatter-verification-pair-dropdown-{panel_key}", "value"),
             Input(f"scatter-station-dropdown-{panel_key}", "value"),
-            Input(f"scatter-forecast-period-dropdown-{panel_key}", "value"),
+            Input(f"scatter-lead-time-dropdown-{panel_key}", "value"),
         )
         def update_scatter_figure(
             selected_pair_id,
             selected_station,
-            selected_forecast_period,
+            selected_lead_time,
         ):
             return make_scatter_figure(
                 selected_pair_id,
                 selected_station,
-                selected_forecast_period,
+                selected_lead_time,
             )
 
     def register_crps_panel_callbacks(panel_key):
