@@ -101,18 +101,21 @@ def test_build_storage_options_remote_merges(
     xarray_general_info_config: GeneralInfoConfig,
 ) -> None:
     """Storage options from auth_config and storage_options dict are merged."""
-    auth = S3AuthConfig(anon=True, region_name="eu-west-1")
+    auth = S3AuthConfig(anon=True, region_name="eu-west-1", endpoint_url="https://s3.dummy.com")  # type: ignore[arg-type]
     config = _make_zarr_config(
         general=xarray_general_info_config,
         path="s3://bucket/key/store.zarr",
         auth_config=auth,
-        storage_options={"requester_pays": "true"},
+        storage_options={"requester_pays": "true", "endpoint_url": "https://s3.dummy.com"},
     )
     options = Zarr(config=config)._build_storage_options()
     assert options is not None
     assert options["anon"] is True
     assert options["requester_pays"] == "true"
-    assert options["client_kwargs"] == {"region_name": "eu-west-1"}
+    assert options["client_kwargs"] == {
+        "region_name": "eu-west-1",
+        "endpoint_url": "https://s3.dummy.com/",
+    }
 
 
 def test_s3_auth_config_to_storage_options_unwraps_secrets() -> None:
