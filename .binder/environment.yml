@@ -1,0 +1,8 @@
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+      - -e ..
+      - dash>=4.0.0
+      - matplotlib
+      - jupyterlab
