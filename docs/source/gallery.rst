@@ -1,10 +1,9 @@
 Gallery
 =======
 
-Note: work in progress... 
-
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   notebooks/tutorial1
-
+   examples/index
+   examples/1a_basics
+   examples/1b_interpretation

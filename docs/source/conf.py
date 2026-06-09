@@ -1,9 +1,21 @@
 import os
+import shutil
 import sys
+from pathlib import Path
 
 from veriflow.constants import VERSION
 
 sys.path.insert(0, os.path.abspath("../../src"))
+
+
+ROOT = Path(__file__).resolve().parents[2]
+NOTEBOOKS = ROOT / "examples"
+DOC_NOTEBOOKS = Path(__file__).parent / "examples"
+
+if DOC_NOTEBOOKS.exists():
+    shutil.rmtree(DOC_NOTEBOOKS)
+
+shutil.copytree(NOTEBOOKS, DOC_NOTEBOOKS)
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -85,8 +97,8 @@ autodoc_default_options = {
 }
 
 
-# nbshpinx
-nb_execution_mode = "off"  # or "auto"
+# nbsphinx
+nb_execution_mode = "auto"  # or "auto"
 nbsphinx_execute = "auto"  # options: 'auto', 'always', 'never'
 nbsphinx_kernel_name = "python3"  # kernel to use for notebook execution
 nbsphinx_timeout = 600  # seconds per notebook
