@@ -122,3 +122,10 @@ dev = [
     "types-pyyaml==6.0.12.20240311",
     "types-requests==2.32.0.20240712",
 ]
+
+[project.optional-dependencies]
+tutorial = [
+    "dash",
+    "matplotlib", 
+    "ipykernel"
+]
